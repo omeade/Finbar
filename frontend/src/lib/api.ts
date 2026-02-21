@@ -3,6 +3,7 @@ import type {
   FinancialSnapshot,
   RiskProfile,
   SimulationResult,
+  StockSearchResult,
   StocksResult,
   Strategy,
 } from "@/types";
@@ -72,4 +73,9 @@ export async function sendChatMessageWithMeta(
 export async function getStocks(symbols: string[] = ["spy.us", "qqq.us", "bnd.us"]): Promise<StocksResult> {
   const query = encodeURIComponent(symbols.join(","));
   return apiGet<StocksResult>(`/api/stocks?symbols=${query}`);
+}
+
+export async function searchStock(query: string, days = 365): Promise<StockSearchResult> {
+  const q = encodeURIComponent(query.trim());
+  return apiGet<StockSearchResult>(`/api/stocks/search?q=${q}&days=${days}`);
 }

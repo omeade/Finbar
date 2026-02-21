@@ -64,3 +64,10 @@ export interface StockData {
 }
 
 export type StocksResult = Record<string, StockData>;
+
+export interface StockSearchResult {
+  query: string;
+  resolved_symbol: string;
+  label: string;
+  data: StockData;
+}

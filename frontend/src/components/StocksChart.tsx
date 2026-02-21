@@ -14,11 +14,23 @@ import {
 type StockData = { dates: string[]; normalised: number[] };
 type Props = { stocks: Record<string, StockData> };
 
-const COLORS: Record<string, string> = {
-  SPY: "#0f766e",
-  QQQ: "#6366f1",
-  BND: "#f59e0b",
-};
+const PALETTE = [
+  "#0b84d8",
+  "#16a34a",
+  "#f97316",
+  "#7c3aed",
+  "#e11d48",
+  "#0f766e",
+  "#6366f1",
+  "#ca8a04",
+  "#0ea5e9",
+  "#84cc16",
+];
+
+function colorForTicker(ticker: string, index: number): string {
+  const hash = ticker.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return PALETTE[(hash + index) % PALETTE.length] ?? "#0b84d8";
+}
 
 export default function StocksChart({ stocks }: Props) {
   const tickers = Object.keys(stocks);
@@ -80,15 +92,16 @@ export default function StocksChart({ stocks }: Props) {
           labelFormatter={(label: string) => `Date: ${label}`}
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        {tickers.map((ticker) => (
+        {tickers.map((ticker, index) => (
           <Line
             key={ticker}
             type="monotone"
             dataKey={ticker}
-            stroke={COLORS[ticker] ?? "#888"}
+            stroke={colorForTicker(ticker, index)}
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4 }}
+            connectNulls
           />
         ))}
       </LineChart>
