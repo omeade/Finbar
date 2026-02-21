@@ -5,22 +5,60 @@
 :root {
   color-scheme: light;
   --font-sans:
-    "Avenir Next", "Segoe UI Variable Display", "SF Pro Display", "Satoshi",
-    "Circular Std", "Helvetica Neue", sans-serif;
+    "Space Grotesk", "Avenir Next", "Segoe UI Variable Display", "SF Pro Display",
+    "Satoshi", "Circular Std", "Helvetica Neue", sans-serif;
   --font-mono:
     "IBM Plex Mono", "SFMono-Regular", "Menlo", "Monaco", "Consolas",
     monospace;
-  --app-bg: #f4f8f7;
-  --ink: #13201c;
-  --muted-ink: #5d6f6a;
+  --app-bg: #eef6fb;
+  --ink: #0f2230;
+  --muted-ink: #567086;
   --surface: #ffffff;
-  --surface-soft: #f8fcfb;
-  --border: #d9e7e2;
-  --brand: #0f766e;
-  --brand-strong: #115e59;
+  --surface-soft: #f3f8fd;
+  --border: #cfe0ec;
+  --brand: #0b84d8;
+  --brand-strong: #0a6bb0;
+  --brand-soft: #d7efff;
+  --accent: #16a34a;
+  --blob-1: rgba(11, 132, 216, 0.22);
+  --blob-2: rgba(22, 163, 74, 0.14);
+  --blob-3: rgba(56, 189, 248, 0.13);
+  --shadow-card: 0 18px 45px -28px rgba(15, 34, 48, 0.45);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --app-bg: #09131c;
+  --ink: #e5eef7;
+  --muted-ink: #8ea7bd;
+  --surface: #122130;
+  --surface-soft: #192c3f;
+  --border: #2b445a;
+  --brand-soft: #173b57;
+  --blob-1: rgba(56, 189, 248, 0.2);
+  --blob-2: rgba(34, 197, 94, 0.14);
+  --blob-3: rgba(11, 132, 216, 0.18);
+  --shadow-card: 0 20px 55px -26px rgba(3, 7, 18, 0.75);
+}
+
+:root[data-accent="mint"] {
+  --brand: #0d9488;
+  --brand-strong: #0f766e;
   --brand-soft: #ccfbf1;
-  --accent: #f59e0b;
-  --shadow-card: 0 12px 35px -24px rgba(8, 47, 73, 0.45);
+  --accent: #22c55e;
+  --blob-1: rgba(13, 148, 136, 0.2);
+  --blob-2: rgba(34, 197, 94, 0.14);
+  --blob-3: rgba(45, 212, 191, 0.16);
+}
+
+:root[data-accent="sunset"] {
+  --brand: #ea580c;
+  --brand-strong: #c2410c;
+  --brand-soft: #ffedd5;
+  --accent: #eab308;
+  --blob-1: rgba(234, 88, 12, 0.22);
+  --blob-2: rgba(234, 179, 8, 0.15);
+  --blob-3: rgba(249, 115, 22, 0.14);
 }
 
 html,
@@ -32,23 +70,50 @@ body {
   font-family: var(--font-sans);
   background-image:
     radial-gradient(
-      circle at 12% 6%,
-      rgba(13, 148, 136, 0.16) 0%,
-      rgba(13, 148, 136, 0) 38%
+      circle at 8% 10%,
+      var(--blob-1) 0%,
+      rgba(11, 132, 216, 0) 42%
     ),
     radial-gradient(
-      circle at 88% 2%,
-      rgba(245, 158, 11, 0.14) 0%,
-      rgba(245, 158, 11, 0) 42%
+      circle at 90% 0%,
+      var(--blob-2) 0%,
+      rgba(22, 163, 74, 0) 35%
     ),
-    linear-gradient(180deg, #f8fcfb 0%, #eef6f3 100%);
+    radial-gradient(
+      circle at 82% 78%,
+      var(--blob-3) 0%,
+      rgba(56, 189, 248, 0) 36%
+    ),
+    linear-gradient(160deg, color-mix(in srgb, var(--app-bg) 20%, #ffffff 80%) 0%, var(--app-bg) 55%, color-mix(in srgb, var(--app-bg) 78%, #0b1220 22%) 100%);
+  background-attachment: fixed;
 }
 
 .app-panel {
   border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 88%, #fff 12%);
+  background:
+    linear-gradient(
+      140deg,
+      color-mix(in srgb, var(--surface) 88%, #fff 12%) 0%,
+      color-mix(in srgb, var(--surface-soft) 82%, #fff 18%) 100%
+    );
   box-shadow: var(--shadow-card);
   backdrop-filter: blur(8px);
+  position: relative;
+}
+
+.app-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(130deg, color-mix(in srgb, var(--brand) 45%, white 55%), color-mix(in srgb, var(--accent) 28%, transparent 72%));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 .fade-up {
