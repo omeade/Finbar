@@ -1,39 +1,69 @@
-import csv
-import io
+import random
 from datetime import datetime, timedelta
 
-import requests
-from flask import Blueprint, jsonify, request
+import yfinance as yf
+from flask import Blueprint, current_app, jsonify, request
 
 stocks_bp = Blueprint("stocks", __name__)
 
+<<<<<<< HEAD
 COMMON_SUFFIXES = ["us", "uk", "de", "pl", "jp"]
+=======
+
+def generate_fallback_series(symbol: str, days: int = 365) -> dict:
+    end = datetime.now().date()
+    start = end - timedelta(days=days)
+    dates = []
+    prices = []
+    base_prices = {"spy.us": 500.0, "qqq.us": 430.0, "bnd.us": 72.0}
+    base = base_prices.get(symbol.lower(), 100.0)
+    rng = random.Random(f"fallback:{symbol.lower()}")
+    price = base
+    current = start
+    while current <= end:
+        if current.weekday() < 5:
+            drift = 0.0002
+            shock = rng.uniform(-0.012, 0.012)
+            price = max(1.0, round(price * (1 + drift + shock), 2))
+            dates.append(current.isoformat())
+            prices.append(price)
+        current += timedelta(days=1)
+    if prices:
+        first = prices[0]
+        normalised = [round(p / first * 100, 2) for p in prices]
+    else:
+        normalised = []
+    return {
+        "dates": dates,
+        "prices": prices,
+        "normalised": normalised,
+        "source": "fallback",
+    }
+>>>>>>> b20dbb1f3b0e5acac4b281e5bc80ed81c14f1aaa
 
 
-def fetch_stooq(symbol: str, days: int = 365) -> dict:
+def fetch_yahoo(symbol: str, days: int = 365) -> dict:
+    # Convert "spy.us" → "SPY", pass directly for unknown symbols
+    ticker = symbol.split(".")[0].upper()
     end = datetime.now()
     start = end - timedelta(days=days)
-    url = (
-        f"https://stooq.com/q/d/l/?s={symbol}"
-        f"&d1={start.strftime('%Y%m%d')}&d2={end.strftime('%Y%m%d')}&i=d"
-    )
     try:
-        r = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-        r.raise_for_status()
-        reader = csv.DictReader(io.StringIO(r.text))
-        rows = [(row["Date"], float(row["Close"])) for row in reader if row.get("Close") and row["Close"] != "null"]
-        rows.sort(key=lambda x: x[0])
-        dates = [row[0] for row in rows]
-        prices = [row[1] for row in rows]
-        # Normalise to base 100 for easy comparison
-        if prices:
-            base = prices[0]
-            normalised = [round(p / base * 100, 2) for p in prices]
-        else:
-            normalised = []
-        return {"dates": dates, "prices": prices, "normalised": normalised}
+        df = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
+        if df.empty:
+            raise ValueError(f"Yahoo Finance returned no data for {ticker!r}")
+        # Flatten multi-index columns if present (yfinance >=0.2 returns them)
+        if hasattr(df.columns, "levels"):
+            df.columns = df.columns.get_level_values(0)
+        dates = df.index.strftime("%Y-%m-%d").tolist()
+        prices = [round(float(p), 2) for p in df["Close"]]
+        base = prices[0]
+        normalised = [round(p / base * 100, 2) for p in prices]
+        return {"dates": dates, "prices": prices, "normalised": normalised, "source": "yahoo"}
     except Exception as e:
-        return {"dates": [], "prices": [], "normalised": [], "error": str(e)}
+        current_app.logger.warning("Yahoo fetch failed for %s: %s", ticker, e)
+        fallback = generate_fallback_series(symbol, days=days)
+        fallback["error"] = str(e)
+        return fallback
 
 
 def symbol_candidates(query: str) -> list[str]:
@@ -52,7 +82,7 @@ def get_stocks():
     result = {}
     for symbol in symbols:
         label = symbol.split(".")[0].upper()
-        result[label] = fetch_stooq(symbol)
+        result[label] = fetch_yahoo(symbol)
     return jsonify(result)
 
 
