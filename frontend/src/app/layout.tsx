@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "FinAgent",
+  title: "Finbar",
   description: "Budget + Stock agents",
 };
 

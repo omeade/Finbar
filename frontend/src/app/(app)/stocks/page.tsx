@@ -6,6 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { getStocks, searchStock } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import {
+  DEFAULT_MARKET_SYMBOLS,
+  loadMarketSelectedSymbols,
+  saveMarketSelectedSymbols,
+} from "@/lib/marketSelection";
+import {
   matchesGroup,
   searchCatalog,
   STOCK_CATALOG,
@@ -29,7 +34,7 @@ type DisplayStock = Pick<StockCatalogItem, "symbol" | "ticker" | "name" | "risk"
 export default function StocksPage() {
   const [group, setGroup] = useState<StockGroup>("all");
   const [expandedList, setExpandedList] = useState(false);
-  const [selected, setSelected] = useState<string[]>(["spy.us", "qqq.us", "aapl.us", "msft.us", "nvda.us"]);
+  const [selected, setSelected] = useState<string[]>(DEFAULT_MARKET_SYMBOLS);
   const [customStocks, setCustomStocks] = useState<Record<string, DisplayStock>>({});
 
   const [stocks, setStocks] = useState<StocksResult | null>(null);
@@ -57,6 +62,14 @@ export default function StocksPage() {
     () => (expandedList ? filteredCatalog : filteredCatalog.slice(0, 10)),
     [expandedList, filteredCatalog]
   );
+
+  useEffect(() => {
+    setSelected(loadMarketSelectedSymbols(DEFAULT_MARKET_SYMBOLS));
+  }, []);
+
+  useEffect(() => {
+    saveMarketSelectedSymbols(selected);
+  }, [selected]);
 
   useEffect(() => {
     if (selected.length === 0) {
