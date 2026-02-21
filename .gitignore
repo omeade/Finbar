@@ -1,2 +1,35 @@
+################################
+# OS
+################################
 .DS_Store
+**/.DS_Store
+node_modules/
+
+################################
+# Frontend (Next.js)
+################################
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.turbo/
+frontend/.env.local
+frontend/.env*
+
+################################
+# Backend (Python)
+################################
+backend/__pycache__/
+backend/*.pyc
+backend/.venv/
+backend/venv/
+backend/env/
+backend/.env*
+backend/.pytest_cache/
+
+################################
+# General
+################################
 .env
+*.log
+*.sqlite3

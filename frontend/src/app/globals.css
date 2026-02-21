@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --font-sans:
+    "Avenir Next", "Segoe UI Variable Display", "SF Pro Display", "Satoshi",
+    "Circular Std", "Helvetica Neue", sans-serif;
+  --font-mono:
+    "IBM Plex Mono", "SFMono-Regular", "Menlo", "Monaco", "Consolas",
+    monospace;
+  --app-bg: #f4f8f7;
+  --ink: #13201c;
+  --muted-ink: #5d6f6a;
+  --surface: #ffffff;
+  --surface-soft: #f8fcfb;
+  --border: #d9e7e2;
+  --brand: #0f766e;
+  --brand-strong: #115e59;
+  --brand-soft: #ccfbf1;
+  --accent: #f59e0b;
+  --shadow-card: 0 12px 35px -24px rgba(8, 47, 73, 0.45);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-image:
+    radial-gradient(
+      circle at 12% 6%,
+      rgba(13, 148, 136, 0.16) 0%,
+      rgba(13, 148, 136, 0) 38%
+    ),
+    radial-gradient(
+      circle at 88% 2%,
+      rgba(245, 158, 11, 0.14) 0%,
+      rgba(245, 158, 11, 0) 42%
+    ),
+    linear-gradient(180deg, #f8fcfb 0%, #eef6f3 100%);
+}
+
+.app-panel {
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 88%, #fff 12%);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(8px);
+}
+
+.fade-up {
+  animation: fade-up 420ms ease both;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
