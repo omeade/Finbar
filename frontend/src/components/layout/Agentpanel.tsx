@@ -124,10 +124,10 @@ export function AgentPanel() {
               key={t}
               onClick={() => setTab(t)}
               className={cn(
-                "rounded-xl px-3 py-2 text-xs border transition",
+                "rounded-xl px-3 py-2 text-xs border transition-all duration-300",
                 tab === t
-                  ? "border-[var(--brand)] bg-[var(--brand)] text-white"
-                  : "border-[var(--border)] text-[var(--muted-ink)] hover:bg-[var(--surface-soft)]"
+                  ? "border-[var(--brand)] bg-gradient-to-r from-[var(--brand)] to-[#22a7ea] text-white shadow-md shadow-sky-900/20"
+                  : "border-[var(--border)] text-[var(--muted-ink)] hover:bg-[var(--surface-soft)] hover:text-[var(--ink)]"
               )}
             >
               {t}
@@ -157,7 +157,7 @@ export function AgentPanel() {
               <button
                 key={prompt}
                 onClick={() => send(prompt)}
-                className="rounded-xl bg-white px-3 py-1.5 text-xs text-[var(--ink)] border border-[var(--border)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition"
+                className="rounded-xl bg-white px-3 py-1.5 text-xs text-[var(--ink)] border border-[var(--border)] transition hover:-translate-y-0.5 hover:border-[var(--brand)] hover:text-[var(--brand)]"
               >
                 {prompt}
               </button>
@@ -174,7 +174,7 @@ export function AgentPanel() {
               className={cn(
                 "max-w-[85%] text-xs rounded-2xl px-3 py-2.5 leading-relaxed",
                 msg.role === "user"
-                  ? "bg-[var(--brand)] text-white rounded-br-sm"
+                  ? "bg-gradient-to-r from-[var(--brand)] to-[#22a7ea] text-white rounded-br-sm"
                   : "bg-[var(--surface-soft)] text-[var(--ink)] border border-[var(--border)] rounded-bl-sm"
               )}
             >
@@ -213,7 +213,7 @@ export function AgentPanel() {
           <button
             onClick={() => send(input)}
             disabled={loading || !input.trim()}
-            className="px-3 py-2 bg-[var(--brand)] text-white rounded-xl hover:bg-[var(--brand-strong)] disabled:opacity-40 transition text-xs font-medium"
+            className="rounded-xl bg-gradient-to-r from-[var(--brand)] to-[#22a7ea] px-3 py-2 text-xs font-medium text-white transition hover:brightness-110 disabled:opacity-40"
           >
             Send
           </button>
