@@ -8,13 +8,15 @@ export function Stat({
   subtext?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-      <div className="text-xs text-neutral-500">{label}</div>
-      <div className="mt-1 text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+    <div className="app-panel fade-up rounded-3xl p-4">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted-ink)]">
+        {label}
+      </div>
+      <div className="mt-1 text-2xl font-semibold text-[var(--ink)]">
         {value}
       </div>
       {subtext ? (
-        <div className="mt-1 text-xs text-neutral-500">{subtext}</div>
+        <div className="mt-1 text-xs text-[var(--muted-ink)]">{subtext}</div>
       ) : null}
     </div>
   );

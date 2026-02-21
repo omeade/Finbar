@@ -3,39 +3,35 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
-
-const nav = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/budget", label: "Budget Agent" },
-  { href: "/stocks", label: "Stock Agent" },
-  { href: "/portfolio", label: "Portfolio" },
-  { href: "/settings", label: "Settings" },
-];
+import { NAV_ITEMS } from "@/lib/navigation";
 
 export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="h-screen w-64 shrink-0 border-r border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
+    <aside className="app-panel m-3 mb-0 rounded-3xl p-4 md:m-4 md:mr-0 md:mb-4 md:h-[calc(100vh-2rem)] md:w-64 md:shrink-0">
       <div className="mb-6">
-        <div className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+        <div className="inline-flex h-8 items-center rounded-full bg-[var(--brand-soft)] px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--brand-strong)]">
+          Investment Copilot
+        </div>
+        <div className="mt-3 text-xl font-semibold text-[var(--ink)]">
           FinAgent
         </div>
-        <div className="text-xs text-neutral-500">Budget + Investing Copilot</div>
+        <div className="text-xs text-[var(--muted-ink)]">Budget + stock intelligence in one place</div>
       </div>
 
-      <nav className="flex flex-col gap-1">
-        {nav.map((item) => {
+      <nav className="grid grid-cols-2 gap-2 md:grid-cols-1">
+        {NAV_ITEMS.map((item) => {
           const active = pathname === item.href;
           return (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "rounded-xl px-3 py-2 text-sm transition",
+                "rounded-2xl px-3 py-2 text-sm font-medium transition",
                 active
-                  ? "bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
-                  : "text-neutral-700 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-900"
+                  ? "bg-[var(--brand)] text-white shadow-lg shadow-teal-900/20"
+                  : "text-[var(--muted-ink)] hover:bg-[var(--surface-soft)] hover:text-[var(--ink)]"
               )}
             >
               {item.label}
