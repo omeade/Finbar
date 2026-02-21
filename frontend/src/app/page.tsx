@@ -8,7 +8,7 @@ export default function HomePage() {
           Personal Finance AI
         </div>
         <div className="mt-4 text-3xl font-semibold text-[var(--ink)]">
-          FinAgent
+          Finbar
         </div>
         <p className="mt-2 text-sm text-[var(--muted-ink)]">
           Budget + Stock agents with dashboards and charts.

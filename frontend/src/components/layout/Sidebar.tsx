@@ -15,7 +15,7 @@ export function Sidebar() {
           Investment Copilot
         </div>
         <div className="mt-3 text-xl font-semibold tracking-tight text-[var(--ink)]">
-          FinAgent
+          Finbar
         </div>
         <div className="text-xs text-[var(--muted-ink)]">Budget + stock intelligence in one place</div>
       </div>

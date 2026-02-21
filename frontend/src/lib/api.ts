@@ -6,6 +6,10 @@ import type {
   StockSearchResult,
   StocksResult,
   Strategy,
+  T212AccountCash,
+  T212AccountInfo,
+  T212AccountType,
+  T212Position,
 } from "@/types";
 
 const API_BASE =
@@ -73,6 +77,44 @@ export async function sendChatMessageWithMeta(
 export async function getStocks(symbols: string[] = ["spy.us", "qqq.us", "bnd.us"]): Promise<StocksResult> {
   const query = encodeURIComponent(symbols.join(","));
   return apiGet<StocksResult>(`/api/stocks?symbols=${query}`);
+}
+
+function t212Headers(apiKey: string, apiSecret: string): Record<string, string> {
+  return {
+    Accept: "application/json",
+    "X-T212-Key": apiKey,
+    "X-T212-Secret": apiSecret,
+  };
+}
+
+export async function validateT212Key(
+  apiKey: string,
+  apiSecret: string,
+  accountType: T212AccountType
+): Promise<T212AccountInfo> {
+  return apiGet<T212AccountInfo>(`/api/t212/account/info?account_type=${accountType}`, {
+    headers: t212Headers(apiKey, apiSecret),
+  });
+}
+
+export async function getT212Cash(
+  apiKey: string,
+  apiSecret: string,
+  accountType: T212AccountType
+): Promise<T212AccountCash> {
+  return apiGet<T212AccountCash>(`/api/t212/account/cash?account_type=${accountType}`, {
+    headers: t212Headers(apiKey, apiSecret),
+  });
+}
+
+export async function getT212Portfolio(
+  apiKey: string,
+  apiSecret: string,
+  accountType: T212AccountType
+): Promise<T212Position[]> {
+  return apiGet<T212Position[]>(`/api/t212/portfolio?account_type=${accountType}`, {
+    headers: t212Headers(apiKey, apiSecret),
+  });
 }
 
 export async function searchStock(query: string, days = 365): Promise<StockSearchResult> {
