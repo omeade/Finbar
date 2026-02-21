@@ -13,7 +13,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
 
-        <div className="flex min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 items-start">
           <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
           <AgentPanel />
         </div>

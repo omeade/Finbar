@@ -6,9 +6,6 @@ from flask import Blueprint, current_app, jsonify, request
 
 stocks_bp = Blueprint("stocks", __name__)
 
-<<<<<<< HEAD
-COMMON_SUFFIXES = ["us", "uk", "de", "pl", "jp"]
-=======
 
 def generate_fallback_series(symbol: str, days: int = 365) -> dict:
     end = datetime.now().date()
@@ -39,7 +36,6 @@ def generate_fallback_series(symbol: str, days: int = 365) -> dict:
         "normalised": normalised,
         "source": "fallback",
     }
->>>>>>> b20dbb1f3b0e5acac4b281e5bc80ed81c14f1aaa
 
 
 def fetch_yahoo(symbol: str, days: int = 365) -> dict:
