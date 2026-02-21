@@ -3,6 +3,7 @@ import type {
   FinancialSnapshot,
   RiskProfile,
   SimulationResult,
+  StockSearchResult,
   StocksResult,
   Strategy,
   T212AccountCash,
@@ -114,4 +115,7 @@ export async function getT212Portfolio(
   return apiGet<T212Position[]>(`/api/t212/portfolio?account_type=${accountType}`, {
     headers: t212Headers(apiKey, apiSecret),
   });
+export async function searchStock(query: string, days = 365): Promise<StockSearchResult> {
+  const q = encodeURIComponent(query.trim());
+  return apiGet<StockSearchResult>(`/api/stocks/search?q=${q}&days=${days}`);
 }

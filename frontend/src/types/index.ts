@@ -94,3 +94,9 @@ export interface T212AccountInfo {
 }
 
 export type T212AccountType = "live" | "demo";
+export interface StockSearchResult {
+  query: string;
+  resolved_symbol: string;
+  label: string;
+  data: StockData;
+}
