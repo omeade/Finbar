@@ -6,6 +6,42 @@ import { validateT212Key, getT212Cash, getT212Portfolio } from "@/lib/api";
 import type { T212AccountCash, T212AccountType, T212Position } from "@/types";
 
 const STORAGE_KEY = "finbar.t212";
+const CACHE_KEY = "finbar.t212.cache";
+const CACHE_TTL_MS = 2 * 60 * 1000;      // show cached data up to 2 min old without re-fetching
+const REFRESH_COOLDOWN_MS = 30 * 1000;   // enforce 30s between manual refreshes
+
+interface PortfolioCache {
+  cash: T212AccountCash;
+  positions: T212Position[];
+  fetchedAt: number;
+}
+
+function loadCache(): PortfolioCache | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    return raw ? (JSON.parse(raw) as PortfolioCache) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveCache(data: PortfolioCache) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+  } catch {
+    // storage quota — ignore
+  }
+}
+
+function clearCache() {
+  localStorage.removeItem(CACHE_KEY);
+}
+
+function ageLabel(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s ago`;
+  return `${Math.floor(s / 60)}m ago`;
+}
 
 interface StoredT212 {
   apiKey: string;
@@ -214,34 +250,77 @@ function PortfolioDashboard({
 }) {
   const [cash, setCash] = useState<T212AccountCash | null>(null);
   const [positions, setPositions] = useState<T212Position[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [fetchedAt, setFetchedAt] = useState<number | null>(null);
+  const [now, setNow] = useState(Date.now());
+  const [cooldownUntil, setCooldownUntil] = useState(0);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  // Tick every second to update "last updated" label and cooldown
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const applyData = useCallback((c: T212AccountCash, p: T212Position[], ts: number) => {
+    setCash(c);
+    setPositions([...p].sort((a, b) => b.currentPrice * b.quantity - a.currentPrice * a.quantity));
+    setFetchedAt(ts);
+  }, []);
+
+  const fetchData = useCallback(async (isManual = false) => {
+    if (isManual) {
+      if (Date.now() < cooldownUntil) return;
+      setRefreshing(true);
+    }
+    setFetchError(null);
     try {
       const [cashData, posData] = await Promise.all([
         getT212Cash(apiKey, apiSecret, accountType),
         getT212Portfolio(apiKey, apiSecret, accountType),
       ]);
-      setCash(cashData);
-      const sorted = [...posData].sort(
-        (a, b) => b.currentPrice * b.quantity - a.currentPrice * a.quantity
-      );
-      setPositions(sorted);
+      const ts = Date.now();
+      applyData(cashData, posData, ts);
+      saveCache({ cash: cashData, positions: posData, fetchedAt: ts });
+      if (isManual) setCooldownUntil(Date.now() + REFRESH_COOLDOWN_MS);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (msg.includes("401")) setError("Credentials are no longer valid. Please reconnect.");
-      else setError("Failed to load portfolio. Is the backend running?");
+      if (msg.includes("401")) {
+        setFetchError("Credentials are no longer valid. Please reconnect.");
+      } else if (msg.includes("429")) {
+        setFetchError("Trading 212 rate limit hit — showing cached data. Try again in a minute.");
+      } else {
+        setFetchError("Could not reach Trading 212. Showing cached data.");
+      }
     } finally {
-      setLoading(false);
+      setRefreshing(false);
+      setInitialLoading(false);
     }
-  }, [apiKey, apiSecret, accountType]);
+  }, [apiKey, apiSecret, accountType, cooldownUntil, applyData]);
 
+  // On mount: load cache instantly, then fetch if cache is stale
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const cached = loadCache();
+    if (cached) {
+      applyData(cached.cash, cached.positions, cached.fetchedAt);
+      setInitialLoading(false);
+      if (Date.now() - cached.fetchedAt > CACHE_TTL_MS) {
+        fetchData();
+      }
+    } else {
+      fetchData();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function handleDisconnect() {
+    clearCache();
+    onDisconnect();
+  }
+
+  const cooldownSecsLeft = Math.max(0, Math.ceil((cooldownUntil - now) / 1000));
+  const hasCachedData = cash !== null;
 
   const totalInvested = positions.reduce((s, p) => s + p.averagePrice * p.quantity, 0);
   const totalValue = positions.reduce((s, p) => s + p.currentPrice * p.quantity, 0);
@@ -260,6 +339,11 @@ function PortfolioDashboard({
             <h1 className="mt-2 text-2xl font-semibold text-[var(--ink)]">My Investments</h1>
           </div>
           <div className="flex items-center gap-3">
+            {fetchedAt && (
+              <span className="text-[10px] text-[var(--muted-ink)]">
+                {refreshing ? "Updating…" : `Updated ${ageLabel(now - fetchedAt)}`}
+              </span>
+            )}
             <span
               className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
                 accountType === "live"
@@ -270,14 +354,14 @@ function PortfolioDashboard({
               {accountType === "live" ? "Live" : "Demo"}
             </span>
             <button
-              onClick={fetchData}
-              disabled={loading}
+              onClick={() => fetchData(true)}
+              disabled={refreshing || cooldownSecsLeft > 0}
               className="text-xs text-[var(--muted-ink)] hover:text-[var(--ink)] transition disabled:opacity-40"
             >
-              Refresh
+              {cooldownSecsLeft > 0 ? `Wait ${cooldownSecsLeft}s` : "Refresh"}
             </button>
             <button
-              onClick={onDisconnect}
+              onClick={handleDisconnect}
               className="text-xs text-[var(--muted-ink)] hover:text-rose-600 transition"
             >
               Disconnect
@@ -286,25 +370,28 @@ function PortfolioDashboard({
         </div>
       </section>
 
-      {loading && (
+      {initialLoading && (
         <div className="flex justify-center py-20">
           <div className="w-10 h-10 border-4 border-[var(--brand-soft)] border-t-[var(--brand)] rounded-full animate-spin" />
         </div>
       )}
 
-      {error && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">
-          {error}
-          <button
-            onClick={fetchData}
-            className="ml-2 underline text-rose-600 hover:text-rose-800"
-          >
-            Retry
-          </button>
+      {fetchError && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-xs text-amber-800 flex items-center justify-between">
+          <span>{fetchError}</span>
+          {!hasCachedData && (
+            <button
+              onClick={() => fetchData(true)}
+              disabled={cooldownSecsLeft > 0}
+              className="ml-3 underline text-amber-700 hover:text-amber-900 disabled:opacity-50"
+            >
+              Retry
+            </button>
+          )}
         </div>
       )}
 
-      {!loading && !error && cash && (
+      {!initialLoading && hasCachedData && cash && (
         <>
           {/* Summary cards */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
