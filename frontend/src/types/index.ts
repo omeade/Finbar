@@ -64,3 +64,33 @@ export interface StockData {
 }
 
 export type StocksResult = Record<string, StockData>;
+
+export interface T212Position {
+  ticker: string;
+  quantity: number;
+  averagePrice: number;
+  currentPrice: number;
+  ppl: number;
+  fxPpl: number;
+  initialFillDate: string;
+  frontend?: string;
+  maxBuy: number;
+  maxSell: number;
+  pieQuantity: number;
+}
+
+export interface T212AccountCash {
+  free: number;
+  invested: number;
+  pieCash: number;
+  result: number;
+  total: number;
+  ppl: number;
+}
+
+export interface T212AccountInfo {
+  id: number;
+  currencyCode: string;
+}
+
+export type T212AccountType = "live" | "demo";

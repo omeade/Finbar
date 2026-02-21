@@ -8,5 +8,5 @@ export const NAV_ITEMS = [
 
 export function titleFromPath(pathname: string): string {
   const match = NAV_ITEMS.find((item) => pathname.startsWith(item.href));
-  return match?.label ?? "FinAgent";
+  return match?.label ?? "Finbar";
 }
