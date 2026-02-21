@@ -4,6 +4,7 @@ import type {
   RiskProfile,
   SimulationResult,
   StockSearchResult,
+  StockUniverseResponse,
   StocksResult,
   Strategy,
   T212AccountCash,
@@ -77,6 +78,10 @@ export async function sendChatMessageWithMeta(
 export async function getStocks(symbols: string[] = ["spy.us", "qqq.us", "bnd.us"]): Promise<StocksResult> {
   const query = encodeURIComponent(symbols.join(","));
   return apiGet<StocksResult>(`/api/stocks?symbols=${query}`);
+}
+
+export async function getStockGroups(): Promise<StockUniverseResponse> {
+  return apiGet<StockUniverseResponse>("/api/stocks/groups");
 }
 
 function t212Headers(apiKey: string, apiSecret: string): Record<string, string> {

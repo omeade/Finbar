@@ -100,3 +100,14 @@ export interface StockSearchResult {
   label: string;
   data: StockData;
 }
+
+export interface StockUniverseGroup {
+  id: string;
+  label: string;
+  symbols: string[];
+}
+
+export interface StockUniverseResponse {
+  groups: StockUniverseGroup[];
+  source: string;
+}

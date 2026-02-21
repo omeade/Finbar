@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -12,20 +13,9 @@ import {
   CartesianGrid,
   ReferenceDot,
 } from "recharts";
-import { getStocks } from "@/lib/api";
-import type { StocksResult } from "@/types";
-
-const SYMBOL_MAP: Record<string, string> = {
-  SPY: "spy.us",
-  QQQ: "qqq.us",
-  BND: "bnd.us",
-};
-
-const SYMBOL_DESC: Record<string, string> = {
-  SPY: "S&P 500 ETF · 500 largest US companies",
-  QQQ: "Nasdaq 100 ETF · Tech & growth focused",
-  BND: "Total Bond Market ETF · Lower risk, steady income",
-};
+import { getStockGroups, getStocks } from "@/lib/api";
+import { SYMBOL_MAP, TICKER_INFO } from "@/lib/stocksConfig";
+import type { StocksResult, StockUniverseGroup } from "@/types";
 
 type RangeKey = "1M" | "6M" | "1Y" | "MAX";
 
@@ -75,14 +65,18 @@ function fmtMonth(d: string) {
   });
 }
 
+function labelFromSymbol(symbol: string) {
+  return symbol.split(".")[0]?.toUpperCase() ?? symbol.toUpperCase();
+}
+
 function ChartTooltip({
   active,
   payload,
   label,
 }: {
-  active?: boolean;
-  payload?: { name: string; value: number; color: string }[];
-  label?: string;
+  active: boolean | undefined;
+  payload: { name: string; value: number; color: string }[] | undefined;
+  label: string | undefined;
 }) {
   if (!active || !payload?.length) return null;
   return (
@@ -99,9 +93,16 @@ function ChartTooltip({
   );
 }
 
-export default function SimulateStockPage() {
-  const [symbolKey, setSymbolKey] = useState("spy.us");
-  const [symbolLabel, setSymbolLabel] = useState("SPY");
+function SimulateStockInner() {
+  const searchParams = useSearchParams();
+  const paramLabel = (searchParams.get("symbol") ?? "SPY").toUpperCase();
+  const requestedSymbol = SYMBOL_MAP[paramLabel] ?? `${paramLabel.toLowerCase()}.us`;
+  const initialLabel = labelFromSymbol(requestedSymbol);
+
+  const [symbolLabel, setSymbolLabel] = useState(initialLabel);
+  const [symbolKey, setSymbolKey] = useState(requestedSymbol);
+  const [availableGroups, setAvailableGroups] = useState<StockUniverseGroup[]>([]);
+  const [groupId, setGroupId] = useState("top-100");
   const [data, setData] = useState<DataPoint[]>([]);
   const [range, setRange] = useState<RangeKey>("1Y");
   const [loading, setLoading] = useState(false);
@@ -111,7 +112,38 @@ export default function SimulateStockPage() {
   const [playIndex, setPlayIndex] = useState(0);
   const [speed, setSpeed] = useState(80);
 
-  // Fetch
+  const activeGroup = useMemo(
+    () => availableGroups.find((group) => group.id === groupId) ?? availableGroups[0],
+    [availableGroups, groupId]
+  );
+  const availableSymbols = activeGroup?.symbols ?? [];
+
+  useEffect(() => {
+    let mounted = true;
+    getStockGroups()
+      .then((res) => {
+        if (!mounted) return;
+        setAvailableGroups(res.groups);
+      })
+      .catch((err) => {
+        console.error("getStockGroups error", err);
+        if (!mounted) return;
+        setAvailableGroups([]);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!availableSymbols.length) return;
+    if (availableSymbols.includes(symbolKey)) return;
+    const first = availableSymbols[0]!;
+    setSymbolKey(first);
+    setSymbolLabel(labelFromSymbol(first));
+  }, [availableSymbols, symbolKey]);
+
+  // Fetch only selected symbol history from Yahoo-backed backend endpoint.
   useEffect(() => {
     let mounted = true;
     setLoading(true);
@@ -202,9 +234,9 @@ export default function SimulateStockPage() {
     return () => clearTimeout(t);
   }, [isPlaying, playIndex, filtered.length, speed]);
 
-  function onSymbolChange(label: string) {
-    setSymbolLabel(label);
-    setSymbolKey(SYMBOL_MAP[label] ?? label.toLowerCase());
+  function onSymbolChange(symbol: string) {
+    setSymbolKey(symbol);
+    setSymbolLabel(labelFromSymbol(symbol));
   }
 
   // Current playback stats
@@ -221,7 +253,6 @@ export default function SimulateStockPage() {
 
   const firstDate = filtered[0];
   const lastDate = filtered.at(-1);
-
   return (
     <div className="space-y-4">
       {/* Hero */}
@@ -233,26 +264,50 @@ export default function SimulateStockPage() {
             </div>
             <h1 className="mt-1 text-2xl font-bold text-[var(--ink)]">DCA Simulator</h1>
             <p className="mt-1 text-sm text-[var(--muted-ink)]">
-              {SYMBOL_DESC[symbolLabel] ?? `Simulating dollar-cost averaging into ${symbolLabel}`}
+              {TICKER_INFO[symbolLabel]?.description ?? `Simulating dollar-cost averaging into ${symbolLabel}`}
             </p>
           </div>
 
           <div className="flex flex-col items-end gap-2">
-            {/* Asset selector */}
-            <div className="flex gap-1 rounded-2xl border border-[var(--border)] bg-[var(--surface-soft)] p-1">
-              {Object.keys(SYMBOL_MAP).map((k) => (
+            {/* Group selector */}
+            <div className="w-full max-w-[700px] overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--surface-soft)] p-1">
+              <div className="flex w-max gap-1">
+              {availableGroups.map((group) => (
                 <button
-                  key={k}
-                  onClick={() => onSymbolChange(k)}
-                  className={`rounded-xl px-4 py-1.5 text-sm font-semibold transition-all ${
-                    symbolLabel === k
-                      ? "bg-[var(--brand)] text-white shadow-sm"
+                  key={group.id}
+                  onClick={() => setGroupId(group.id)}
+                  className={`rounded-xl px-3 py-1 text-xs font-semibold transition-all ${
+                    groupId === group.id
+                      ? "bg-[var(--brand)] text-white"
                       : "text-[var(--muted-ink)] hover:text-[var(--ink)]"
                   }`}
                 >
-                  {k}
+                  {group.label}
                 </button>
               ))}
+              </div>
+            </div>
+
+            {/* Asset selector */}
+            <div className="w-full max-w-[700px] overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--surface-soft)] p-1">
+              <div className="flex w-max gap-1">
+              {availableSymbols.map((symbol) => {
+                const label = labelFromSymbol(symbol);
+                return (
+                  <button
+                    key={symbol}
+                    onClick={() => onSymbolChange(symbol)}
+                    className={`rounded-xl px-4 py-1.5 text-sm font-semibold transition-all ${
+                      symbolKey === symbol
+                        ? "bg-[var(--brand)] text-white shadow-sm"
+                        : "text-[var(--muted-ink)] hover:text-[var(--ink)]"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+              </div>
             </div>
 
             {/* Range selector */}
@@ -330,6 +385,17 @@ export default function SimulateStockPage() {
           </div>
         </div>
       </div>
+
+      <section className="app-panel fade-up rounded-3xl p-4 md:p-5">
+        <div className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-ink)]">
+          Yahoo Finance Group
+        </div>
+        <div className="text-sm text-[var(--muted-ink)]">
+          {activeGroup
+            ? `${activeGroup.label}: ${activeGroup.symbols.length} symbols available`
+            : "Loading stock groups..."}
+        </div>
+      </section>
 
       {/* Chart + Controls */}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -695,5 +761,19 @@ export default function SimulateStockPage() {
         Data from Stooq · Simulations are illustrative only · Not financial advice
       </div>
     </div>
+  );
+}
+
+export default function SimulateStockPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="app-panel fade-up rounded-3xl p-12 flex justify-center">
+          <div className="w-8 h-8 border-4 border-[var(--brand-soft)] border-t-[var(--brand)] rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <SimulateStockInner />
+    </Suspense>
   );
 }
