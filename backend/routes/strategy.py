@@ -3,10 +3,12 @@ import os
 
 from dotenv import load_dotenv
 from flask import Blueprint, jsonify, request
-from google import genai
+from openai import OpenAI
 
 load_dotenv()
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+MODEL_NAME = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+STRATEGY_MAX_TOKENS = int(os.getenv("OPENAI_STRATEGY_MAX_TOKENS", "900"))
 
 strategy_bp = Blueprint("strategy", __name__)
 
@@ -100,8 +102,13 @@ Rules:
 - Be educational and responsible. Never guarantee returns."""
 
     try:
-        response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
-        text = response.text.strip()
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=STRATEGY_MAX_TOKENS,
+        )
+        text = (response.choices[0].message.content or "").strip()
         # Strip markdown code fences if present
         if "```" in text:
             text = text.split("```")[1]

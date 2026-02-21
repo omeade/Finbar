@@ -15,7 +15,6 @@ import { SimulationResult } from "@/types";
 
 interface Props {
   data: SimulationResult;
-  monthlyAmount: number;
 }
 
 function formatEuro(value: number) {
@@ -23,7 +22,7 @@ function formatEuro(value: number) {
   return `€${value.toFixed(0)}`;
 }
 
-export default function SimulationChart({ data, monthlyAmount }: Props) {
+export default function SimulationChart({ data }: Props) {
   const chartData = data.years.map((year, i) => ({
     year: `Year ${year}`,
     Typical: data.scenarios.typical[i]?.value ?? 0,

@@ -31,10 +31,11 @@ export default function StrategyResultStep({ snapshot, riskProfile, onNext, onBa
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
-    setError(null);
     generateStrategy(snapshot, riskProfile)
-      .then(setStrategy)
+      .then((s) => {
+        setStrategy(s);
+        setError(null);
+      })
       .catch(() => setError("Failed to generate strategy. Is the backend running?"))
       .finally(() => setLoading(false));
   }, [snapshot, riskProfile]);

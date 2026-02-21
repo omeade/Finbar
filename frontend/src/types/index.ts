@@ -45,3 +45,22 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
 }
+
+export interface ChatResponse {
+  response: string;
+  source?: "fallback";
+  error_code?: string;
+  error_type?: string;
+  error_message?: string;
+  timestamp_utc?: string;
+  model?: string;
+}
+
+export interface StockData {
+  dates: string[];
+  prices: number[];
+  normalised: number[];
+  error?: string;
+}
+
+export type StocksResult = Record<string, StockData>;

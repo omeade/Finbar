@@ -1,12 +1,15 @@
-import json
 import os
+import traceback
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from flask import Blueprint, jsonify, request
-from google import genai
+from openai import OpenAI
 
 load_dotenv()
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+MODEL_NAME = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+CHAT_MAX_TOKENS = int(os.getenv("OPENAI_CHAT_MAX_TOKENS", "180"))
 
 chat_bp = Blueprint("chat", __name__)
 
@@ -41,10 +44,62 @@ Always add: "This is educational, not financial advice."
 
 User: {message}
 
-Reply in 2-3 short paragraphs. Be warm, clear, and concise."""
+Reply in 3-5 short sentences total.
+Keep the response under 110 words.
+Use plain language and no bullet points unless explicitly requested."""
 
     try:
-        response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
-        return jsonify({"response": response.text.strip()})
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.6,
+            max_tokens=CHAT_MAX_TOKENS,
+        )
+        text = response.choices[0].message.content or ""
+        return jsonify({"response": text.strip()})
     except Exception as e:
-        return jsonify({"response": f"Sorry, I couldn't process that. ({str(e)})"}), 500
+        error_text = str(e)
+        error_type = e.__class__.__name__
+        trace = traceback.format_exc(limit=4)
+        timestamp = datetime.now(timezone.utc).isoformat()
+        print(
+            "[CHAT_ERROR]",
+            {
+                "timestamp_utc": timestamp,
+                "model": MODEL_NAME,
+                "error_type": error_type,
+                "error_message": error_text,
+                "max_tokens": CHAT_MAX_TOKENS,
+                "message_excerpt": message[:180],
+                "risk_profile": risk_profile,
+                "traceback": trace,
+            },
+            flush=True,
+        )
+
+        if "429" in error_text or "rate" in error_text.lower() or "quota" in error_text.lower():
+            fallback = "Live AI is temporarily unavailable (quota limit reached). Please try again shortly."
+            return jsonify(
+                {
+                    "response": fallback,
+                    "source": "fallback",
+                    "error_code": "quota_exceeded",
+                    "error_type": error_type,
+                    "error_message": error_text,
+                    "timestamp_utc": timestamp,
+                    "model": MODEL_NAME,
+                }
+            )
+
+        fallback = "Live AI is unavailable right now. Please try again in a moment."
+        return jsonify(
+            {
+                "response": fallback,
+                "source": "fallback",
+                "error_code": "model_unavailable",
+                "error_type": error_type,
+                "error_message": error_text,
+                "timestamp_utc": timestamp,
+                "model": MODEL_NAME,
+            }
+        )

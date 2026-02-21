@@ -22,7 +22,6 @@ export default function SimulationStep({ strategy, riskProfile, onBack }: Props)
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
     runSimulation(monthlyAmount, years, riskProfile)
       .then(setResult)
       .finally(() => setLoading(false));
@@ -51,7 +50,10 @@ export default function SimulationStep({ strategy, riskProfile, onBack }: Props)
               max={2000}
               step={10}
               value={monthlyAmount}
-              onChange={(e) => setMonthlyAmount(Number(e.target.value))}
+              onChange={(e) => {
+                setLoading(true);
+                setMonthlyAmount(Number(e.target.value));
+              }}
               className="w-full accent-indigo-600"
             />
             <div className="flex justify-between text-xs text-gray-400 mt-0.5">
@@ -70,7 +72,10 @@ export default function SimulationStep({ strategy, riskProfile, onBack }: Props)
               min={1}
               max={30}
               value={years}
-              onChange={(e) => setYears(Number(e.target.value))}
+              onChange={(e) => {
+                setLoading(true);
+                setYears(Number(e.target.value));
+              }}
               className="w-full accent-indigo-600"
             />
             <div className="flex justify-between text-xs text-gray-400 mt-0.5">
@@ -88,7 +93,7 @@ export default function SimulationStep({ strategy, riskProfile, onBack }: Props)
             <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
           </div>
         ) : result ? (
-          <SimulationChart data={result} monthlyAmount={monthlyAmount} />
+          <SimulationChart data={result} />
         ) : null}
       </div>
 
