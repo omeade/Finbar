@@ -111,20 +111,20 @@ export function AgentPanel() {
   }
 
   return (
-    <aside className="app-panel m-4 ml-0 hidden h-[calc(100vh-2rem)] w-96 shrink-0 flex-col rounded-3xl xl:flex">
+    <aside className="app-panel m-4 ml-0 hidden h-[calc(100vh-2rem)] w-[22rem] shrink-0 flex-col self-start rounded-3xl xl:sticky xl:top-4 xl:flex 2xl:w-96">
       {/* Header */}
       <div className="p-4 pb-2">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-2 h-2 rounded-full bg-[var(--brand)] animate-pulse" />
           <div className="text-sm font-semibold tracking-wide text-[var(--muted-ink)]">Agent</div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {tabs.map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={cn(
-                "rounded-xl px-3 py-2 text-xs border transition-all duration-300",
+                "rounded-xl border px-3 py-2 text-xs whitespace-nowrap transition-all duration-300",
                 tab === t
                   ? "border-[var(--brand)] bg-gradient-to-r from-[var(--brand)] to-[#22a7ea] text-white shadow-md shadow-sky-900/20"
                   : "border-[var(--border)] text-[var(--muted-ink)] hover:bg-[var(--surface-soft)] hover:text-[var(--ink)]"

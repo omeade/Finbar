@@ -2,11 +2,36 @@
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { generateStrategy, getStocks } from "@/lib/api";
+import type { RiskProfile, StockData, Strategy } from "@/types";
+import { cn } from "@/lib/cn";
+
+type MarketSnapshot = {
+  spy: number | null;
+  qqq: number | null;
+  bnd: number | null;
+};
+
+function oneYearChange(data?: StockData): number | null {
+  if (!data || data.prices.length < 2) return null;
+  const first = data.prices[0] ?? 0;
+  const last = data.prices[data.prices.length - 1] ?? 0;
+  if (!first) return null;
+  return ((last - first) / first) * 100;
+}
 
 export default function BudgetPage() {
   const [income, setIncome] = useState(3000);
   const [expenses, setExpenses] = useState(1800);
   const [savings, setSavings] = useState(200);
+  const [riskProfile, setRiskProfile] = useState<RiskProfile>("balanced");
+  const [emergencyFundMonths, setEmergencyFundMonths] = useState(3);
+  const [hasDebt, setHasDebt] = useState(false);
+  const [timeHorizonYears, setTimeHorizonYears] = useState(8);
+  const [strategy, setStrategy] = useState<Strategy | null>(null);
+  const [market, setMarket] = useState<MarketSnapshot | null>(null);
+  const [loadingStrategy, setLoadingStrategy] = useState(false);
+  const [strategyError, setStrategyError] = useState<string | null>(null);
 
   const surplus = income - expenses - savings;
   const savingsRate = income > 0 ? ((savings / income) * 100).toFixed(1) : "0";
@@ -27,17 +52,49 @@ export default function BudgetPage() {
     healthy: "Healthy",
   };
 
+  async function runAdvisor() {
+    setLoadingStrategy(true);
+    setStrategyError(null);
+    try {
+      const snapshot = {
+        monthly_income: income,
+        monthly_expenses: expenses,
+        emergency_fund_months: emergencyFundMonths,
+        has_debt: hasDebt,
+        time_horizon_years: timeHorizonYears,
+      };
+
+      const [strategyRes, marketRes] = await Promise.all([
+        generateStrategy(snapshot, riskProfile),
+        getStocks(["spy.us", "qqq.us", "bnd.us"]),
+      ]);
+
+      setStrategy(strategyRes);
+      setMarket({
+        spy: oneYearChange(marketRes.SPY),
+        qqq: oneYearChange(marketRes.QQQ),
+        bnd: oneYearChange(marketRes.BND),
+      });
+    } catch {
+      setStrategy(null);
+      setMarket(null);
+      setStrategyError("Could not generate strategy right now. Check backend/API setup and try again.");
+    } finally {
+      setLoadingStrategy(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <section className="app-panel fade-up rounded-3xl p-5 md:p-6">
         <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted-ink)]">
-          Budget Agent
+          Advisor
         </div>
         <h1 className="mt-2 text-2xl font-semibold text-[var(--ink)]">
-          Monthly Budget Analyser
+          Monthly Advisor
         </h1>
         <p className="mt-1 text-sm text-[var(--muted-ink)]">
-          Enter your numbers to see how much you can safely invest each month.
+          Enter your finances, choose risk profile, then generate a strategy with market context.
         </p>
       </section>
 
@@ -45,7 +102,7 @@ export default function BudgetPage() {
         {/* Inputs */}
         <Card>
           <CardHeader>
-            <CardTitle>Your Monthly Figures</CardTitle>
+            <CardTitle>Your Financial Inputs</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-5">
@@ -70,6 +127,61 @@ export default function BudgetPage() {
                   </div>
                 </div>
               ))}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-[var(--muted-ink)] mb-1.5">
+                    Risk Profile
+                  </label>
+                  <select
+                    value={riskProfile}
+                    onChange={(e) => setRiskProfile(e.target.value as RiskProfile)}
+                    className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--ink)] bg-white outline-none focus:border-[var(--brand)]"
+                  >
+                    <option value="conservative">Conservative</option>
+                    <option value="balanced">Balanced</option>
+                    <option value="aggressive">Aggressive</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[var(--muted-ink)] mb-1.5">
+                    Emergency Fund (months)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={12}
+                    value={emergencyFundMonths}
+                    onChange={(e) => setEmergencyFundMonths(Number(e.target.value))}
+                    className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--ink)] bg-white outline-none focus:border-[var(--brand)]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-xs text-[var(--ink)]">
+                  <input
+                    type="checkbox"
+                    checked={hasDebt}
+                    onChange={(e) => setHasDebt(e.target.checked)}
+                    className="h-4 w-4 accent-[var(--brand)]"
+                  />
+                  High-interest debt
+                </label>
+                <div>
+                  <label className="block text-xs font-medium text-[var(--muted-ink)] mb-1.5">
+                    Horizon (years)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={30}
+                    value={timeHorizonYears}
+                    onChange={(e) => setTimeHorizonYears(Number(e.target.value))}
+                    className="w-full border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--ink)] bg-white outline-none focus:border-[var(--brand)]"
+                  />
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -117,7 +229,7 @@ export default function BudgetPage() {
               </div>
               <p className="text-xs text-[var(--brand-strong)] leading-relaxed">
                 With a €{surplus.toLocaleString()} surplus, investing €{investable.toLocaleString()}/month
-                (50%) is a safe starting point. Head to Portfolio to build your strategy.
+                (50%) is a safe starting point.
               </p>
             </div>
           )}
@@ -165,6 +277,121 @@ export default function BudgetPage() {
                 );
               })}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="app-panel fade-up rounded-3xl p-5 md:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-ink)]">
+              Strategy Engine
+            </div>
+            <div className="mt-1 text-sm text-[var(--muted-ink)]">
+              Build a strategy using your inputs + live market context from Stooq.
+            </div>
+          </div>
+          <button
+            onClick={runAdvisor}
+            disabled={loadingStrategy || surplus < 0}
+            className="rounded-xl bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-strong)] disabled:opacity-50"
+          >
+            {loadingStrategy ? "Generating..." : "Generate Strategy"}
+          </button>
+        </div>
+      </div>
+
+      {(strategy || strategyError) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Advisor Strategy Panel</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {strategyError ? (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                {strategyError}
+              </div>
+            ) : null}
+
+            {strategy ? (
+              <>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted-ink)]">
+                      Recommended Risk
+                    </div>
+                    <div className="mt-1 text-base font-semibold text-[var(--ink)] capitalize">{riskProfile}</div>
+                  </div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted-ink)]">
+                      Monthly Investable
+                    </div>
+                    <div className="mt-1 text-base font-semibold text-[var(--ink)]">
+                      €{Math.round(strategy.monthly_investable).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted-ink)]">
+                      Ready to Invest
+                    </div>
+                    <div className="mt-1 text-base font-semibold text-[var(--ink)]">
+                      {strategy.ready_to_invest ? "Yes" : "Not Yet"}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-ink)]">
+                    Allocation
+                  </div>
+                  <div className="space-y-2">
+                    {strategy.allocation.map((a) => (
+                      <div key={a.asset} className="rounded-xl border border-[var(--border)] bg-white p-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-semibold text-[var(--ink)]">{a.asset}</span>
+                          <span className="font-bold text-[var(--ink)]">{a.percentage}%</span>
+                        </div>
+                        <div className="mt-1 text-xs text-[var(--muted-ink)]">{a.description}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-ink)] mb-1">
+                    Strategy Explanation
+                  </div>
+                  <p className="text-sm text-[var(--ink)] leading-relaxed">{strategy.rationale}</p>
+                </div>
+
+                <div className="rounded-xl border border-[var(--border)] bg-white p-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-ink)] mb-2">
+                    Market Context (Stooq, 1Y)
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-3 text-sm">
+                    {[
+                      { label: "S&P 500 (SPY)", value: market?.spy },
+                      { label: "Nasdaq 100 (QQQ)", value: market?.qqq },
+                      { label: "US Bonds (BND)", value: market?.bnd },
+                    ].map((m) => {
+                      const val = m.value;
+                      const positive = (val ?? 0) >= 0;
+                      return (
+                        <div key={m.label} className="rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-3">
+                          <div className="text-xs text-[var(--muted-ink)]">{m.label}</div>
+                          <div className={cn(
+                            "mt-1 font-semibold",
+                            val == null ? "text-[var(--muted-ink)]" : positive ? "text-emerald-600" : "text-rose-600"
+                          )}>
+                            {val == null ? "No data" : `${positive ? "+" : ""}${val.toFixed(1)}%`}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            ) : null}
           </CardContent>
         </Card>
       )}
