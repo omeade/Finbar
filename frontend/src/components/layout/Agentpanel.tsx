@@ -95,7 +95,7 @@ export function AgentPanel() {
     {
       role: "assistant",
       content:
-        "Hi! Ask me anything about your budget, investments, or the app. I have access to your financial inputs whenever you fill them in. Educational only — not financial advice.",
+        "Hey, I’m Finbar, your financial advisor AI. I can help with budgeting, investing, portfolio questions, and app guidance. I’ll use your saved financial inputs when available. Educational only — not financial advice.",
     },
   ]);
   const [input, setInput] = useState("");
