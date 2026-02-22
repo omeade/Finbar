@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
 import {
   SETTINGS_KEY,
@@ -8,6 +8,8 @@ import {
   ThemeAccent,
   ThemeMode,
 } from "@/lib/settings";
+import { getAuthUser, isAuthenticated } from "@/lib/auth";
+import { updateUserData } from "@/lib/api";
 
 type ResponseLength = "short" | "normal" | "detailed";
 type StartPage = "/dashboard" | "/budget" | "/stocks" | "/learn" | "/portfolio";
@@ -77,21 +79,32 @@ function writeSettings(next: AppSettings) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
   window.dispatchEvent(new Event(SETTINGS_UPDATED_EVENT));
+  if (isAuthenticated()) {
+    updateUserData({ settings: next as unknown as Record<string, unknown> }).catch(() => {});
+  }
 }
 
 export default function SettingsPage() {
   const settings = useSyncExternalStore(subscribeSettings, readStoredSettings, () => DEFAULT_SETTINGS);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const authUser = getAuthUser();
+
+  // Keep settings.email in sync with the real account email
+  useEffect(() => {
+    if (authUser?.email && settings.email !== authUser.email) {
+      writeSettings({ ...settings, email: authUser.email });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser?.email]);
 
   const completion = useMemo(() => {
     let score = 0;
-    if (settings.displayName.trim()) score += 20;
-    if (settings.email.trim()) score += 20;
-    if (settings.monthlySavingsGoal > 0) score += 20;
-    if (settings.responseLength) score += 20;
-    if (settings.startPage) score += 20;
+    if (settings.displayName.trim()) score += 25;
+    if (authUser?.email) score += 25;
+    if (settings.monthlySavingsGoal > 0) score += 25;
+    if (settings.responseLength) score += 25;
     return score;
-  }, [settings]);
+  }, [settings, authUser?.email]);
 
   function set<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
     writeSettings({ ...settings, [key]: value });
@@ -142,15 +155,15 @@ export default function SettingsPage() {
                 className="mt-1.5 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--brand)] focus:ring-2 focus:ring-sky-100"
               />
             </label>
-            <label className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-ink)]">
-              Email
-              <input
-                type="email"
-                value={settings.email}
-                onChange={(e) => set("email", e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--brand)] focus:ring-2 focus:ring-sky-100"
-              />
-            </label>
+            <div className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-ink)]">
+              Account Email
+              <div className="mt-1.5 flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2.5">
+                <span className="text-sm text-[var(--ink)]">{authUser?.email ?? "—"}</span>
+                <span className="rounded-full bg-[var(--brand-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--brand-strong)]">
+                  Account
+                </span>
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <label className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-ink)]">
                 Currency

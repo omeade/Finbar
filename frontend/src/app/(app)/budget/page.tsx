@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { generateStrategy, getStocks } from "@/lib/api";
+import { generateStrategy, getStocks, updateUserData } from "@/lib/api";
+import { isAuthenticated } from "@/lib/auth";
 import type { RiskProfile, StockData, Strategy } from "@/types";
 import { cn } from "@/lib/cn";
 
@@ -38,25 +39,32 @@ export default function BudgetPage() {
   const surplus = income - expenses - savings;
   const savingsRate = income > 0 ? ((savings / income) * 100).toFixed(1) : "0";
   const investable = surplus > 0 ? Math.round(surplus * 0.5) : 0;
+  const budgetSyncRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    localStorage.setItem(
-      BUDGET_CONTEXT_KEY,
-      JSON.stringify({
-        income,
-        expenses,
-        savings,
-        surplus,
-        savingsRate,
-        investable,
-        riskProfile,
-        emergencyFundMonths,
-        hasDebt,
-        timeHorizonYears,
-        budgetStatus: surplus < 0 ? "overspending" : surplus < 200 ? "tight" : "healthy",
-      })
-    );
+    const budgetContext = {
+      income,
+      expenses,
+      savings,
+      surplus,
+      savingsRate,
+      investable,
+      riskProfile,
+      emergencyFundMonths,
+      hasDebt,
+      timeHorizonYears,
+      budgetStatus: surplus < 0 ? "overspending" : surplus < 200 ? "tight" : "healthy",
+    };
+    localStorage.setItem(BUDGET_CONTEXT_KEY, JSON.stringify(budgetContext));
+
+    // Debounced backend sync (1.5s after last change)
+    if (budgetSyncRef.current) clearTimeout(budgetSyncRef.current);
+    budgetSyncRef.current = setTimeout(() => {
+      if (isAuthenticated()) {
+        updateUserData({ budget: { income, expenses, savings, riskProfile, emergencyFundMonths, hasDebt, timeHorizonYears } }).catch(() => {});
+      }
+    }, 1500);
   }, [income, expenses, savings, surplus, savingsRate, investable, riskProfile, emergencyFundMonths, hasDebt, timeHorizonYears]);
 
   const status =
