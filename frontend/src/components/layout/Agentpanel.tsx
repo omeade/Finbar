@@ -192,7 +192,7 @@ export function AgentPanel() {
       <div className="p-4 pb-2">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-2 h-2 rounded-full bg-[var(--brand)] animate-pulse" />
-          <div className="text-sm font-semibold tracking-wide text-[var(--muted-ink)]">Agent</div>
+          <div className="text-sm font-semibold tracking-wide text-[var(--muted-ink)]">Talk with Finbar</div>
         </div>
         <div className="flex flex-wrap gap-2">
           {tabs.map((t) => (
@@ -294,7 +294,7 @@ export function AgentPanel() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send(input)}
             className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--ink)] outline-none focus:border-[var(--brand)]"
-            placeholder={`Message ${tab} agent…`}
+            placeholder={`Talk with Finbar about ${tab}…`}
           />
           <button
             onClick={() => send(input)}
