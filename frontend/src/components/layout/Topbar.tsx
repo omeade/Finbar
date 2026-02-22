@@ -30,7 +30,7 @@ export function Topbar() {
           className="hidden w-64 rounded-2xl border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--brand)] focus:ring-2 focus:ring-sky-200 xl:block"
           placeholder="Search transactions or tickers…"
         />
-        <button className="rounded-2xl border border-[var(--border)] bg-white px-3 py-2 text-sm font-medium text-[var(--ink)] transition hover:border-[var(--brand)] hover:bg-[var(--surface-soft)]">
+        <button className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--ink)] transition hover:border-[var(--brand)] hover:bg-[var(--surface-soft)]">
           Profile
         </button>
       </div>

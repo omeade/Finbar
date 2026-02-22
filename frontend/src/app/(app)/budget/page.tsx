@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { generateStrategy, getStocks } from "@/lib/api";
 import type { RiskProfile, StockData, Strategy } from "@/types";
 import { cn } from "@/lib/cn";
+
+export const BUDGET_CONTEXT_KEY = "finagent.budgetContext";
 
 type MarketSnapshot = {
   spy: number | null;
@@ -37,13 +39,33 @@ export default function BudgetPage() {
   const savingsRate = income > 0 ? ((savings / income) * 100).toFixed(1) : "0";
   const investable = surplus > 0 ? Math.round(surplus * 0.5) : 0;
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(
+      BUDGET_CONTEXT_KEY,
+      JSON.stringify({
+        income,
+        expenses,
+        savings,
+        surplus,
+        savingsRate,
+        investable,
+        riskProfile,
+        emergencyFundMonths,
+        hasDebt,
+        timeHorizonYears,
+        budgetStatus: surplus < 0 ? "overspending" : surplus < 200 ? "tight" : "healthy",
+      })
+    );
+  }, [income, expenses, savings, surplus, savingsRate, investable, riskProfile, emergencyFundMonths, hasDebt, timeHorizonYears]);
+
   const status =
     surplus < 0 ? "overspending" : surplus < 200 ? "tight" : "healthy";
 
   const STATUS_STYLES = {
-    overspending: "bg-rose-100 text-rose-700",
-    tight: "bg-amber-100 text-amber-700",
-    healthy: "bg-emerald-100 text-emerald-700",
+    overspending: "bg-rose-500/15 text-rose-600",
+    tight: "bg-amber-500/15 text-amber-600",
+    healthy: "bg-emerald-500/15 text-emerald-600",
   };
 
   const STATUS_LABELS = {
@@ -122,7 +144,7 @@ export default function BudgetPage() {
                       min={0}
                       value={value}
                       onChange={(e) => set(Number(e.target.value))}
-                      className="w-full pl-7 pr-4 py-2.5 border border-[var(--border)] rounded-xl text-sm text-[var(--ink)] bg-white outline-none focus:border-[var(--brand)]"
+                      className="w-full pl-7 pr-4 py-2.5 border border-[var(--border)] rounded-xl text-sm text-[var(--ink)] bg-[var(--surface)] outline-none focus:border-[var(--brand)]"
                     />
                   </div>
                 </div>
@@ -136,7 +158,7 @@ export default function BudgetPage() {
                   <select
                     value={riskProfile}
                     onChange={(e) => setRiskProfile(e.target.value as RiskProfile)}
-                    className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--ink)] bg-white outline-none focus:border-[var(--brand)]"
+                    className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--ink)] bg-[var(--surface)] outline-none focus:border-[var(--brand)]"
                   >
                     <option value="conservative">Conservative</option>
                     <option value="balanced">Balanced</option>
@@ -153,7 +175,7 @@ export default function BudgetPage() {
                     max={12}
                     value={emergencyFundMonths}
                     onChange={(e) => setEmergencyFundMonths(Number(e.target.value))}
-                    className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--ink)] bg-white outline-none focus:border-[var(--brand)]"
+                    className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--ink)] bg-[var(--surface)] outline-none focus:border-[var(--brand)]"
                   />
                 </div>
               </div>
@@ -178,7 +200,7 @@ export default function BudgetPage() {
                     max={30}
                     value={timeHorizonYears}
                     onChange={(e) => setTimeHorizonYears(Number(e.target.value))}
-                    className="w-full border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--ink)] bg-white outline-none focus:border-[var(--brand)]"
+                    className="w-full border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--ink)] bg-[var(--surface)] outline-none focus:border-[var(--brand)]"
                   />
                 </div>
               </div>
@@ -235,8 +257,8 @@ export default function BudgetPage() {
           )}
 
           {surplus < 0 && (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-              <div className="text-xs font-semibold text-rose-700 mb-1">⚠️ Overspending</div>
+            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4">
+              <div className="text-xs font-semibold text-rose-600 mb-1">⚠️ Overspending</div>
               <p className="text-xs text-rose-600 leading-relaxed">
                 You&apos;re spending €{Math.abs(surplus).toLocaleString()} more than you earn. Reduce expenses
                 before starting to invest.
@@ -258,7 +280,7 @@ export default function BudgetPage() {
                 { label: "Expenses", amount: expenses, color: "bg-rose-400" },
                 { label: "Savings", amount: savings, color: "bg-amber-400" },
                 { label: "Investable", amount: Math.max(investable, 0), color: "bg-[var(--brand)]" },
-                { label: "Remaining", amount: Math.max(surplus - investable, 0), color: "bg-gray-200" },
+                { label: "Remaining", amount: Math.max(surplus - investable, 0), color: "bg-[var(--border)]" },
               ].map(({ label, amount, color }) => {
                 const pct = income > 0 ? Math.max((amount / income) * 100, 0) : 0;
                 return (
@@ -308,7 +330,7 @@ export default function BudgetPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {strategyError ? (
-              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-600">
                 {strategyError}
               </div>
             ) : null}
@@ -346,7 +368,7 @@ export default function BudgetPage() {
                   </div>
                   <div className="space-y-2">
                     {strategy.allocation.map((a) => (
-                      <div key={a.asset} className="rounded-xl border border-[var(--border)] bg-white p-3">
+                      <div key={a.asset} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
                         <div className="flex items-center justify-between text-sm">
                           <span className="font-semibold text-[var(--ink)]">{a.asset}</span>
                           <span className="font-bold text-[var(--ink)]">{a.percentage}%</span>
@@ -364,7 +386,7 @@ export default function BudgetPage() {
                   <p className="text-sm text-[var(--ink)] leading-relaxed">{strategy.rationale}</p>
                 </div>
 
-                <div className="rounded-xl border border-[var(--border)] bg-white p-4">
+                <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
                   <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-ink)] mb-2">
                     Market Context (Stooq, 1Y)
                   </div>

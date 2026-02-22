@@ -19,9 +19,9 @@ import type { StocksResult } from "@/types";
 const StocksChart = dynamic(() => import("@/components/StocksChart"), { ssr: false });
 
 const RISK_STYLE: Record<StockRisk, string> = {
-  low: "bg-emerald-100 text-emerald-700",
-  medium: "bg-amber-100 text-amber-700",
-  high: "bg-rose-100 text-rose-700",
+  low: "bg-emerald-500/15 text-emerald-600",
+  medium: "bg-amber-500/15 text-amber-600",
+  high: "bg-rose-500/15 text-rose-600",
 };
 
 type DisplayStock = Pick<StockCatalogItem, "symbol" | "ticker" | "name" | "risk">;
@@ -164,7 +164,7 @@ export default function StocksPage() {
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && runSearch()}
               placeholder="Search company name or ticker (e.g. Apple, AAPL)"
-              className="w-full min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-sm text-[var(--ink)] outline-none focus:border-[var(--brand)]"
+              className="w-full min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--ink)] outline-none focus:border-[var(--brand)]"
             />
             <button
               onClick={runSearch}
@@ -211,7 +211,7 @@ export default function StocksPage() {
                   "rounded-xl border px-3 py-2 text-xs font-semibold transition",
                   group === option.id
                     ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-strong)]"
-                    : "border-[var(--border)] bg-white text-[var(--muted-ink)] hover:border-[var(--brand)]"
+                    : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted-ink)] hover:border-[var(--brand)]"
                 )}
                 title={option.note}
               >
@@ -220,7 +220,7 @@ export default function StocksPage() {
             ))}
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-[var(--border)] bg-white">
+          <div className="overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
             <div className="min-w-[620px]">
               <div className="grid grid-cols-[90px_1fr_100px_120px] gap-2 border-b border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-ink)]">
                 <div>Ticker</div>
@@ -259,7 +259,7 @@ export default function StocksPage() {
           {filteredCatalog.length > 10 ? (
             <button
               onClick={() => setExpandedList((v) => !v)}
-              className="rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-xs font-semibold text-[var(--ink)] transition hover:border-[var(--brand)]"
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--ink)] transition hover:border-[var(--brand)]"
             >
               {expandedList ? "Show Preview (10)" : `Show All (${filteredCatalog.length})`}
             </button>
@@ -276,7 +276,7 @@ export default function StocksPage() {
                 const next = filteredCatalog.slice(0, 8).map((i) => i.symbol);
                 setSelected(next);
               }}
-              className="rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-xs font-semibold text-[var(--ink)] transition hover:border-[var(--brand)]"
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--ink)] transition hover:border-[var(--brand)]"
             >
               Load Current Group
             </button>
@@ -288,7 +288,7 @@ export default function StocksPage() {
               selectedMeta.map((item) => (
                 <div
                   key={item.symbol}
-                  className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-white px-3 py-1.5 text-xs"
+                  className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs"
                 >
                   <span className="font-semibold text-[var(--ink)]">{item.ticker}</span>
                   <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold uppercase", RISK_STYLE[item.risk])}>

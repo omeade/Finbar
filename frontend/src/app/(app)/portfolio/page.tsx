@@ -192,7 +192,7 @@ function ConnectScreen({
               placeholder="Your Trading 212 API Key ID"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              className="w-full px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm text-[var(--ink)] bg-white outline-none focus:border-[var(--brand)]"
+              className="w-full px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm text-[var(--ink)] bg-[var(--surface)] outline-none focus:border-[var(--brand)]"
             />
           </div>
           <div>
@@ -205,7 +205,7 @@ function ConnectScreen({
               value={apiSecret}
               onChange={(e) => setApiSecret(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleConnect()}
-              className="w-full px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm text-[var(--ink)] bg-white outline-none focus:border-[var(--brand)]"
+              className="w-full px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm text-[var(--ink)] bg-[var(--surface)] outline-none focus:border-[var(--brand)]"
             />
             <p className="mt-1 text-[10px] text-[var(--muted-ink)]">
               The secret is shown only once after generation — make sure you saved it.

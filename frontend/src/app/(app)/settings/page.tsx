@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
 import {
   SETTINGS_KEY,
@@ -10,7 +10,7 @@ import {
 } from "@/lib/settings";
 
 type ResponseLength = "short" | "normal" | "detailed";
-type StartPage = "/dashboard" | "/budget" | "/stocks" | "/portfolio";
+type StartPage = "/dashboard" | "/budget" | "/stocks" | "/learn" | "/portfolio";
 
 type AppSettings = {
   displayName: string;
@@ -40,26 +40,48 @@ const DEFAULT_SETTINGS: AppSettings = {
   themeAccent: "ocean",
 };
 
+let _settingsCache: AppSettings = DEFAULT_SETTINGS;
+let _settingsRaw: string | null = null;
+
 function readStoredSettings(): AppSettings {
   if (typeof window === "undefined") return DEFAULT_SETTINGS;
   try {
     const raw = window.localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return DEFAULT_SETTINGS;
-    return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<AppSettings>) };
+    if (raw === _settingsRaw) return _settingsCache;
+    _settingsRaw = raw;
+    _settingsCache = raw
+      ? { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<AppSettings>) }
+      : DEFAULT_SETTINGS;
+    return _settingsCache;
   } catch {
     return DEFAULT_SETTINGS;
   }
 }
 
-export default function SettingsPage() {
-  const [settings, setSettings] = useState<AppSettings>(() => readStoredSettings());
-  const [savedAt, setSavedAt] = useState<string | null>(null);
+function subscribeSettings(onStoreChange: () => void) {
+  if (typeof window === "undefined") return () => {};
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    window.dispatchEvent(new Event(SETTINGS_UPDATED_EVENT));
-  }, [settings]);
+  function onStorage(event: StorageEvent) {
+    if (event.key === SETTINGS_KEY) onStoreChange();
+  }
+
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(SETTINGS_UPDATED_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(SETTINGS_UPDATED_EVENT, onStoreChange);
+  };
+}
+
+function writeSettings(next: AppSettings) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+  window.dispatchEvent(new Event(SETTINGS_UPDATED_EVENT));
+}
+
+export default function SettingsPage() {
+  const settings = useSyncExternalStore(subscribeSettings, readStoredSettings, () => DEFAULT_SETTINGS);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const completion = useMemo(() => {
     let score = 0;
@@ -72,7 +94,7 @@ export default function SettingsPage() {
   }, [settings]);
 
   function set<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
-    setSettings((prev) => ({ ...prev, [key]: value }));
+    writeSettings({ ...settings, [key]: value });
     setSavedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
   }
 
@@ -117,7 +139,7 @@ export default function SettingsPage() {
               <input
                 value={settings.displayName}
                 onChange={(e) => set("displayName", e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--brand)] focus:ring-2 focus:ring-sky-100"
+                className="mt-1.5 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--brand)] focus:ring-2 focus:ring-sky-100"
               />
             </label>
             <label className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-ink)]">
@@ -126,7 +148,7 @@ export default function SettingsPage() {
                 type="email"
                 value={settings.email}
                 onChange={(e) => set("email", e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--brand)] focus:ring-2 focus:ring-sky-100"
+                className="mt-1.5 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--brand)] focus:ring-2 focus:ring-sky-100"
               />
             </label>
             <div className="grid grid-cols-2 gap-3">
@@ -135,7 +157,7 @@ export default function SettingsPage() {
                 <select
                   value={settings.currency}
                   onChange={(e) => set("currency", e.target.value as AppSettings["currency"])}
-                  className="mt-1.5 w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--brand)] focus:ring-2 focus:ring-sky-100"
+                  className="mt-1.5 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--brand)] focus:ring-2 focus:ring-sky-100"
                 >
                   <option value="EUR">EUR</option>
                   <option value="USD">USD</option>
@@ -150,7 +172,7 @@ export default function SettingsPage() {
                   step={50}
                   value={settings.monthlySavingsGoal}
                   onChange={(e) => set("monthlySavingsGoal", Number(e.target.value))}
-                  className="mt-1.5 w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--brand)] focus:ring-2 focus:ring-sky-100"
+                  className="mt-1.5 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--brand)] focus:ring-2 focus:ring-sky-100"
                 />
               </label>
             </div>
@@ -180,8 +202,8 @@ export default function SettingsPage() {
                     className={cn(
                       "rounded-xl border px-3 py-2 text-xs font-semibold capitalize transition",
                       settings.responseLength === size
-                        ? "border-[var(--brand)] bg-gradient-to-r from-[var(--brand-soft)] to-[#e9f7ff] text-[var(--brand-strong)]"
-                        : "border-[var(--border)] bg-white text-[var(--muted-ink)] hover:border-[var(--brand)]"
+                        ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-strong)]"
+                        : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted-ink)] hover:border-[var(--brand)]"
                     )}
                   >
                     {size}
@@ -203,8 +225,8 @@ export default function SettingsPage() {
                 className={cn(
                   "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]",
                   settings.showAgentDebug
-                    ? "bg-white text-[var(--brand)]"
-                    : "bg-white text-[var(--muted-ink)]"
+                    ? "bg-[var(--surface-soft)] text-[var(--brand)]"
+                    : "bg-[var(--surface-soft)] text-[var(--muted-ink)]"
                 )}
               >
                 {settings.showAgentDebug ? "On" : "Off"}
@@ -235,7 +257,7 @@ export default function SettingsPage() {
                       "rounded-xl border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] transition",
                       settings.themeMode === mode
                         ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-strong)]"
-                        : "border-[var(--border)] bg-white text-[var(--muted-ink)]"
+                        : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted-ink)]"
                     )}
                   >
                     {mode}
@@ -310,22 +332,23 @@ export default function SettingsPage() {
               <select
                 value={settings.startPage}
                 onChange={(e) => set("startPage", e.target.value as StartPage)}
-                className="mt-1.5 w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--brand)] focus:ring-2 focus:ring-sky-100"
+                className="mt-1.5 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--brand)] focus:ring-2 focus:ring-sky-100"
               >
                 <option value="/dashboard">Dashboard</option>
                 <option value="/budget">Budget</option>
                 <option value="/stocks">Stocks</option>
+                <option value="/learn">Learn</option>
                 <option value="/portfolio">Portfolio</option>
               </select>
             </label>
             <button
               onClick={() => {
-                setSettings(DEFAULT_SETTINGS);
+                writeSettings(DEFAULT_SETTINGS);
                 setSavedAt(
                   new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
                 );
               }}
-              className="rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-xs font-semibold text-[var(--ink)] transition hover:border-[var(--brand)] hover:bg-[var(--surface-soft)]"
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-xs font-semibold text-[var(--ink)] transition hover:border-[var(--brand)] hover:bg-[var(--surface-soft)]"
             >
               Reset to defaults
             </button>

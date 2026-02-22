@@ -85,7 +85,7 @@ export default function DashboardPage() {
               >
                 <div className="font-medium text-[var(--ink)]">{i.title}</div>
                 <div className="mt-2 text-[var(--muted-ink)]">{i.text}</div>
-                <button className="mt-3 rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-xs font-medium text-[var(--ink)] hover:border-[var(--brand)]">
+                <button className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-medium text-[var(--ink)] hover:border-[var(--brand)]">
                   Apply
                 </button>
               </div>
