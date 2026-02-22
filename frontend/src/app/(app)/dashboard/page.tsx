@@ -1,8 +1,7 @@
 "use client";
 
 import { Stat } from "@/components/ui/Stat";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { mockCashflow, mockInsights, mockNetWorth } from "@/lib/mock";
+import { mockCashflow } from "@/lib/mock";
 import dynamic from "next/dynamic";
 
 const DashboardCharts = dynamic(
@@ -12,6 +11,15 @@ const DashboardCharts = dynamic(
     ),
   { ssr: false }
 );
+
+const DashboardStocks = dynamic(
+  () =>
+    import("@/components/dashboard/DashboardStocks").then(
+      (mod) => mod.DashboardStocks
+    ),
+  { ssr: false }
+);
+
 const EURO_FORMATTER = new Intl.NumberFormat("en-IE", {
   style: "currency",
   currency: "EUR",
@@ -19,80 +27,80 @@ const EURO_FORMATTER = new Intl.NumberFormat("en-IE", {
 });
 
 export default function DashboardPage() {
-  const netWorthNow = mockNetWorth[mockNetWorth.length - 1]?.value ?? 0;
-  const latestCashflow = mockCashflow[mockCashflow.length - 1];
-  const monthlyIncome = latestCashflow?.income ?? 0;
-  const monthlySpending = latestCashflow?.spending ?? 0;
-  const formatCurrency = (value: number) => EURO_FORMATTER.format(value);
+  const prev = mockCashflow[mockCashflow.length - 2];
+  const curr = mockCashflow[mockCashflow.length - 1];
+  const income = curr?.income ?? 0;
+  const spending = curr?.spending ?? 0;
+  const saved = income - spending;
+  const savingsRate = income > 0 ? Math.round((saved / income) * 100) : 0;
+
+  const spendingDelta =
+    prev != null ? ((spending - prev.spending) / prev.spending) * 100 : null;
+  const prevSaved = prev != null ? prev.income - prev.spending : null;
+  const savedDelta =
+    prevSaved != null && prevSaved !== 0
+      ? ((saved - prevSaved) / prevSaved) * 100
+      : null;
+
+  const fmt = (v: number) => EURO_FORMATTER.format(v);
+  const fmtDelta = (v: number) => `${v > 0 ? "+" : ""}${v.toFixed(1)}%`;
 
   return (
     <div className="space-y-6">
-      <section className="app-panel fade-up rounded-3xl p-5 md:p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted-ink)]">
-              Financial Command Center
-            </div>
-            <h1 className="mt-2 text-2xl font-semibold text-[var(--ink)] md:text-3xl">
-              Make budget and portfolio calls with confidence
-            </h1>
+      {/* ── Hero ── */}
+      <section className="app-panel fade-up rounded-3xl overflow-hidden relative p-6 md:p-8">
+        <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-[var(--brand)] opacity-[0.07] blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 -left-12 h-52 w-52 rounded-full bg-[var(--accent)] opacity-[0.08] blur-3xl" />
+
+        <div className="relative">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-[var(--brand-soft)] bg-[var(--brand-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--brand)] mb-3">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] animate-pulse" />
+            February 2026
           </div>
-          <button className="rounded-2xl bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--brand-strong)]">
-            Run Unified Analysis
-          </button>
+          <h1 className="text-3xl font-bold text-[var(--ink)] md:text-4xl leading-snug">
+            You&apos;re up {fmt(saved)}<br />
+            <span className="text-[var(--brand)]">this month.</span>
+          </h1>
+          <p className="mt-2 text-sm text-[var(--muted-ink)]">
+            {fmt(income)} in &nbsp;·&nbsp; {fmt(spending)} out &nbsp;·&nbsp;{" "}
+            {fmt(saved)} saved
+          </p>
         </div>
       </section>
 
+      {/* ── Stats ── */}
       <div className="grid gap-4 md:grid-cols-4">
         <Stat
-          label="Net Worth"
-          value={formatCurrency(netWorthNow)}
-          subtext="Last 6 months"
-        />
-        <Stat
           label="Monthly Income"
-          value={formatCurrency(monthlyIncome)}
+          value={fmt(income)}
           subtext="Most recent month"
         />
         <Stat
           label="Monthly Spending"
-          value={formatCurrency(monthlySpending)}
-          subtext="Most recent month"
+          value={fmt(spending)}
+          delta={spendingDelta !== null ? fmtDelta(spendingDelta) : undefined}
+          deltaGood={spendingDelta !== null ? spendingDelta < 0 : undefined}
+          subtext="vs last month"
         />
         <Stat
-          label="Budget Status"
-          value={monthlySpending <= monthlyIncome ? "On Track" : "At Risk"}
-          subtext="Based on cashflow"
+          label="Saved This Month"
+          value={fmt(saved)}
+          delta={savedDelta !== null ? fmtDelta(savedDelta) : undefined}
+          deltaGood={savedDelta !== null ? savedDelta > 0 : undefined}
+          subtext="vs last month"
+        />
+        <Stat
+          label="Savings Rate"
+          value={`${savingsRate}%`}
+          subtext="of income saved"
         />
       </div>
 
-      <DashboardCharts
-        netWorth={mockNetWorth}
-        cashflow={mockCashflow}
-        formatCurrency={formatCurrency}
-      />
+      {/* ── ETF Chart ── */}
+      <DashboardCharts />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Today’s Recommendations</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-3">
-            {mockInsights.map((i) => (
-              <div
-                key={i.title}
-                className="rounded-2xl border border-[var(--border)] bg-[var(--surface-soft)] p-4 text-sm"
-              >
-                <div className="font-medium text-[var(--ink)]">{i.title}</div>
-                <div className="mt-2 text-[var(--muted-ink)]">{i.text}</div>
-                <button className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-medium text-[var(--ink)] hover:border-[var(--brand)]">
-                  Apply
-                </button>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* ── Stocks ── */}
+      <DashboardStocks />
     </div>
   );
 }

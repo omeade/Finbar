@@ -1,82 +1,82 @@
 "use client";
 
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  BarChart,
-  Bar,
-  CartesianGrid,
-} from "recharts";
+import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import { getStocks } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import type { CashflowPoint, NetWorthPoint } from "@/types/dashboard";
+import type { StocksResult } from "@/types";
 
-type Props = {
-  netWorth: NetWorthPoint[];
-  cashflow: CashflowPoint[];
-  formatCurrency: (value: number) => string;
+const StocksChart = dynamic(() => import("@/components/StocksChart"), {
+  ssr: false,
+});
+
+const ETF_SYMBOLS = ["spy.us", "qqq.us", "vti.us"];
+
+const ETF_META: Record<string, { ticker: string; label: string }> = {
+  "spy.us": { ticker: "SPY", label: "S&P 500" },
+  "qqq.us": { ticker: "QQQ", label: "Nasdaq 100" },
+  "vti.us": { ticker: "VTI", label: "Total Market" },
 };
 
-export function DashboardCharts({ netWorth, cashflow, formatCurrency }: Props) {
-  return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Net Worth</CardTitle>
-        </CardHeader>
-        <CardContent className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={netWorth}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#d7e6e0" />
-              <XAxis dataKey="month" stroke="#5d6f6a" />
-              <YAxis tickFormatter={formatCurrency} stroke="#5d6f6a" />
-              <Tooltip
-                formatter={(value) => formatCurrency(Number(value))}
-                contentStyle={{
-                  borderRadius: 14,
-                  border: "1px solid #d9e7e2",
-                  backgroundColor: "#ffffff",
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke="#0f766e"
-                strokeWidth={3}
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+const LEGEND_COLORS = ["#0b84d8", "#16a34a", "#f97316"];
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Cashflow (Income vs Spending)</CardTitle>
-        </CardHeader>
-        <CardContent className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={cashflow}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#d7e6e0" />
-              <XAxis dataKey="month" stroke="#5d6f6a" />
-              <YAxis tickFormatter={formatCurrency} stroke="#5d6f6a" />
-              <Tooltip
-                formatter={(value) => formatCurrency(Number(value))}
-                contentStyle={{
-                  borderRadius: 14,
-                  border: "1px solid #d9e7e2",
-                  backgroundColor: "#ffffff",
-                }}
-              />
-              <Bar dataKey="income" fill="#0f766e" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="spending" fill="#f59e0b" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-    </div>
+export function DashboardCharts() {
+  const [stocks, setStocks] = useState<StocksResult | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    getStocks(ETF_SYMBOLS)
+      .then(setStocks)
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const chartData = useMemo(() => {
+    if (!stocks) return null;
+    const entries = Object.entries(stocks).filter(
+      ([, d]) => d.dates.length > 1 && d.normalised.length > 1
+    );
+    return entries.length > 0 ? Object.fromEntries(entries) : null;
+  }, [stocks]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle>Top ETF Performance</CardTitle>
+          <div className="flex items-center gap-4">
+            {ETF_SYMBOLS.map((sym, i) => (
+              <span
+                key={sym}
+                className="flex items-center gap-1.5 text-xs text-[var(--muted-ink)]"
+              >
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ background: LEGEND_COLORS[i] }}
+                />
+                {ETF_META[sym]?.ticker}
+                <span className="hidden sm:inline">
+                  — {ETF_META[sym]?.label}
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="h-72">
+        {loading ? (
+          <div className="flex h-full items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--brand-soft)] border-t-[var(--brand)]" />
+          </div>
+        ) : error || !chartData ? (
+          <div className="flex h-full items-center justify-center text-sm text-[var(--muted-ink)]">
+            ETF data unavailable — is the backend running?
+          </div>
+        ) : (
+          <StocksChart stocks={chartData} />
+        )}
+      </CardContent>
+    </Card>
   );
 }
