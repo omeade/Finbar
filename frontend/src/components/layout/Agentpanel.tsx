@@ -2,13 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
-import { sendChatMessageWithMeta } from "@/lib/api";
-import type { RiskProfile, Strategy } from "@/types";
+import { sendChatMessageWithMeta, type ChatContext } from "@/lib/api";
 import {
   PORTFOLIO_CONTEXT_EVENT,
   PORTFOLIO_CONTEXT_KEY,
   readStoredPortfolioContext,
 } from "@/lib/portfolioContext";
+import { BUDGET_CONTEXT_KEY } from "@/app/(app)/budget/page";
+
+const SETTINGS_KEY = "finagent.settings";
+const T212_CACHE_KEY = "finbar.t212.cache";
 
 type Tab = "Unified" | "Budget" | "Stocks";
 const tabs: Tab[] = ["Unified", "Budget", "Stocks"];
@@ -19,22 +22,80 @@ interface Message {
 }
 
 const QUICK_PROMPTS: Record<Tab, string[]> = {
-  Unified: ["Cut spending by €200", "Explain net worth jump", "Diversify portfolio"],
-  Budget: ["Where am I overspending?", "How much can I save?", "Best budget strategy?"],
-  Stocks: ["What is an ETF?", "Why diversify?", "Explain index funds"],
+  Unified: ["Summarise my finances", "Am I on track to invest?", "How can I improve my budget?"],
+  Budget: ["Where am I overspending?", "How much can I save?", "Should I invest this month?"],
+  Stocks: ["What is an ETF?", "Explain my portfolio allocation", "How diversified am I?"],
 };
+
+function readAllContext(): ChatContext {
+  const portfolio = readStoredPortfolioContext();
+
+  let budget: ChatContext["budget"] = null;
+  try {
+    const raw = localStorage.getItem(BUDGET_CONTEXT_KEY);
+    if (raw) budget = JSON.parse(raw) as ChatContext["budget"];
+  } catch { /* ignore */ }
+
+  let settings: ChatContext["settings"] = null;
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) {
+      const s = JSON.parse(raw) as {
+        displayName?: string;
+        currency?: string;
+        monthlySavingsGoal?: number;
+        responseLength?: "short" | "normal" | "detailed";
+      };
+      settings = {
+        displayName: s.displayName ?? "there",
+        currency: s.currency ?? "EUR",
+        monthlySavingsGoal: s.monthlySavingsGoal ?? 0,
+        responseLength: s.responseLength ?? "normal",
+      };
+    }
+  } catch { /* ignore */ }
+
+  let t212: ChatContext["portfolio"] = null;
+  try {
+    const raw = localStorage.getItem(T212_CACHE_KEY);
+    if (raw) {
+      const cache = JSON.parse(raw) as {
+        cash?: { free: number; invested: number; total: number; ppl: number };
+        positions?: Array<{ ticker: string; quantity: number; averagePrice: number; currentPrice: number; ppl: number }>;
+      };
+      if (cache.cash || cache.positions) {
+        t212 = {
+          cash: cache.cash ?? null,
+          positions: cache.positions ?? [],
+        };
+      }
+    }
+  } catch { /* ignore */ }
+
+  return {
+    strategy: portfolio.strategy,
+    risk_profile: portfolio.risk_profile,
+    budget,
+    settings,
+    portfolio: t212,
+  };
+}
 
 export function AgentPanel() {
   const [tab, setTab] = useState<Tab>("Unified");
-  const [context, setContext] = useState<{
-    strategy: Strategy | null;
-    risk_profile: RiskProfile | null;
-  }>({ strategy: null, risk_profile: null });
+  const [quickPromptsOpen, setQuickPromptsOpen] = useState(true);
+  const [context, setContext] = useState<ChatContext>(() => ({
+    strategy: null,
+    risk_profile: null,
+    budget: null,
+    settings: null,
+    portfolio: null,
+  }));
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
       content:
-        "Hi! Ask me anything about your finances, investments, or strategy. Educational only — not financial advice.",
+        "Hi! Ask me anything about your budget, investments, or the app. I have access to your financial inputs whenever you fill them in. Educational only — not financial advice.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -42,25 +103,31 @@ export function AgentPanel() {
   const [debugLog, setDebugLog] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const hasPortfolioContext = Boolean(context.strategy && context.risk_profile);
+  const hasBudgetContext = Boolean(context.budget);
 
   useEffect(() => {
-    setContext(readStoredPortfolioContext());
+    setContext(readAllContext());
+
+    function refresh() {
+      setContext(readAllContext());
+    }
 
     function onStorage(event: StorageEvent) {
-      if (event.key === PORTFOLIO_CONTEXT_KEY) {
-        setContext(readStoredPortfolioContext());
+      if (
+        event.key === PORTFOLIO_CONTEXT_KEY ||
+        event.key === BUDGET_CONTEXT_KEY ||
+        event.key === SETTINGS_KEY ||
+        event.key === T212_CACHE_KEY
+      ) {
+        refresh();
       }
     }
 
-    function onPortfolioContextUpdated() {
-      setContext(readStoredPortfolioContext());
-    }
-
     window.addEventListener("storage", onStorage);
-    window.addEventListener(PORTFOLIO_CONTEXT_EVENT, onPortfolioContextUpdated);
+    window.addEventListener(PORTFOLIO_CONTEXT_EVENT, refresh);
     return () => {
       window.removeEventListener("storage", onStorage);
-      window.removeEventListener(PORTFOLIO_CONTEXT_EVENT, onPortfolioContextUpdated);
+      window.removeEventListener(PORTFOLIO_CONTEXT_EVENT, refresh);
     };
   }, []);
 
@@ -68,10 +135,13 @@ export function AgentPanel() {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
     setInput("");
+    // Refresh context before sending so we always use the latest inputs
+    const latestContext = readAllContext();
+    setContext(latestContext);
     setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
     setLoading(true);
     try {
-      const payload = await sendChatMessageWithMeta(trimmed, context);
+      const payload = await sendChatMessageWithMeta(trimmed, latestContext);
       setMessages((prev) => [...prev, { role: "assistant", content: payload.response }]);
 
       if (payload.source === "fallback") {
@@ -110,6 +180,12 @@ export function AgentPanel() {
     }
   }
 
+  const contextSummary = hasPortfolioContext
+    ? `Strategy: ${context.risk_profile} • €${context.strategy?.monthly_investable ?? 0}/mo`
+    : hasBudgetContext
+    ? `Budget loaded • €${context.budget?.surplus ?? 0} surplus`
+    : null;
+
   return (
     <aside className="app-panel m-4 ml-0 hidden h-[calc(100vh-2rem)] w-[22rem] shrink-0 flex-col self-start rounded-3xl xl:sticky xl:top-4 xl:flex 2xl:w-96">
       {/* Header */}
@@ -137,32 +213,42 @@ export function AgentPanel() {
         <div
           className={cn(
             "mt-3 rounded-2xl border px-3 py-2 text-xs",
-            hasPortfolioContext
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-amber-200 bg-amber-50 text-amber-700"
+            contextSummary
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+              : "border-amber-500/30 bg-amber-500/10 text-amber-600"
           )}
         >
-          {hasPortfolioContext
-            ? `Context linked: ${context.risk_profile} profile • €${context.strategy?.monthly_investable ?? 0}/mo plan`
-            : "No portfolio context yet. Complete Portfolio to personalize replies."}
+          {contextSummary ?? "No data yet. Visit the Advisor page to enter your finances."}
         </div>
       </div>
 
       {/* Quick prompts */}
       <div className="px-4 pb-2">
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-soft)] p-3">
-          <div className="text-xs font-medium text-[var(--muted-ink)] mb-2">Quick prompts</div>
-          <div className="flex flex-wrap gap-2">
-            {QUICK_PROMPTS[tab].map((prompt) => (
-              <button
-                key={prompt}
-                onClick={() => send(prompt)}
-                className="rounded-xl bg-white px-3 py-1.5 text-xs text-[var(--ink)] border border-[var(--border)] transition hover:-translate-y-0.5 hover:border-[var(--brand)] hover:text-[var(--brand)]"
-              >
-                {prompt}
-              </button>
-            ))}
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="text-xs font-medium text-[var(--muted-ink)]">Quick prompts</div>
+            <button
+              onClick={() => setQuickPromptsOpen((prev) => !prev)}
+              className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-ink)] transition hover:border-[var(--brand)] hover:text-[var(--brand)]"
+              aria-expanded={quickPromptsOpen}
+              aria-label={quickPromptsOpen ? "Hide quick prompts" : "Show quick prompts"}
+            >
+              {quickPromptsOpen ? "Hide" : "Show"}
+            </button>
           </div>
+          {quickPromptsOpen ? (
+            <div className="flex flex-wrap gap-2">
+              {QUICK_PROMPTS[tab].map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => send(prompt)}
+                  className="rounded-xl bg-[var(--surface)] px-3 py-1.5 text-xs text-[var(--ink)] border border-[var(--border)] transition hover:-translate-y-0.5 hover:border-[var(--brand)] hover:text-[var(--brand)]"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -207,7 +293,7 @@ export function AgentPanel() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send(input)}
-            className="flex-1 rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-xs text-[var(--ink)] outline-none focus:border-[var(--brand)]"
+            className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--ink)] outline-none focus:border-[var(--brand)]"
             placeholder={`Message ${tab} agent…`}
           />
           <button
@@ -222,7 +308,7 @@ export function AgentPanel() {
           Educational only · Not financial advice
         </p>
         {debugLog ? (
-          <details className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] text-amber-800">
+          <details className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[10px] text-amber-600">
             <summary className="cursor-pointer font-semibold">AI debug log</summary>
             <pre className="mt-1 whitespace-pre-wrap break-words font-mono">{debugLog}</pre>
           </details>

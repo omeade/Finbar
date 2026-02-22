@@ -23,7 +23,7 @@
   --blob-1: rgba(11, 132, 216, 0.22);
   --blob-2: rgba(22, 163, 74, 0.14);
   --blob-3: rgba(56, 189, 248, 0.13);
-  --shadow-card: 0 18px 45px -28px rgba(15, 34, 48, 0.45);
+  --shadow-card: 0 2px 16px -4px rgba(15, 34, 48, 0.1);
 }
 
 :root[data-theme="dark"] {
@@ -34,11 +34,12 @@
   --surface: #122130;
   --surface-soft: #192c3f;
   --border: #2b445a;
+  --brand-strong: #38b6ff;
   --brand-soft: #173b57;
   --blob-1: rgba(56, 189, 248, 0.2);
   --blob-2: rgba(34, 197, 94, 0.14);
   --blob-3: rgba(11, 132, 216, 0.18);
-  --shadow-card: 0 20px 55px -26px rgba(3, 7, 18, 0.75);
+  --shadow-card: 0 2px 16px -4px rgba(0, 0, 0, 0.35);
 }
 
 :root[data-accent="mint"] {

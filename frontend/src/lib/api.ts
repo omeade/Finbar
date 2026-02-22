@@ -60,9 +60,37 @@ export async function runSimulation(
   });
 }
 
+export interface ChatContext {
+  strategy: Strategy | null;
+  risk_profile: RiskProfile | null;
+  budget?: {
+    income: number;
+    expenses: number;
+    savings: number;
+    surplus: number;
+    savingsRate: string;
+    investable: number;
+    riskProfile: RiskProfile;
+    emergencyFundMonths: number;
+    hasDebt: boolean;
+    timeHorizonYears: number;
+    budgetStatus: "healthy" | "tight" | "overspending";
+  } | null;
+  settings?: {
+    displayName: string;
+    currency: string;
+    monthlySavingsGoal: number;
+    responseLength?: "short" | "normal" | "detailed";
+  } | null;
+  portfolio?: {
+    cash: { free: number; invested: number; total: number; ppl: number } | null;
+    positions: Array<{ ticker: string; quantity: number; averagePrice: number; currentPrice: number; ppl: number }>;
+  } | null;
+}
+
 export async function sendChatMessage(
   message: string,
-  context: { strategy: Strategy | null; risk_profile: RiskProfile | null }
+  context: ChatContext
 ): Promise<string> {
   const data = await apiPost<ChatResponse>("/api/chat", { message, context });
   return data.response;
@@ -70,7 +98,7 @@ export async function sendChatMessage(
 
 export async function sendChatMessageWithMeta(
   message: string,
-  context: { strategy: Strategy | null; risk_profile: RiskProfile | null }
+  context: ChatContext
 ): Promise<ChatResponse> {
   return apiPost<ChatResponse>("/api/chat", { message, context });
 }
